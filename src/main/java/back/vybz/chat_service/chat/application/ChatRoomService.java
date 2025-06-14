@@ -1,0 +1,51 @@
+package back.vybz.chat_service.chat.application;
+
+import back.vybz.chat_service.chat.domain.ChatMessage;
+import back.vybz.chat_service.chat.dto.request.RequestCreateChatRoomDto;
+import back.vybz.chat_service.chat.dto.response.ResponseChatRoomDto;
+
+import java.util.List;
+
+public interface ChatRoomService {
+
+    /**
+     * 채팅방 생성
+     * @param requestCreateChatRoomDto
+     */
+    void createChatRoom(RequestCreateChatRoomDto requestCreateChatRoomDto);
+
+    /**
+     * 참여자 UUID로 채팅방 조회
+     * @param participantUuid
+     */
+    List<ResponseChatRoomDto> getChatRoomByParticipantUuid(String participantUuid);
+
+    /**
+     * 상대방 UUID 조회
+     * @param chatRoomId
+     * @param senderUuid
+     */
+    String getOpponentUuid(String chatRoomId, String senderUuid);
+
+    /**
+     * 마지막 메시지 업데이트
+     * @param chatRoomId
+     * @param chatMessage
+     */
+    void updateLastMessage(String chatRoomId, ChatMessage chatMessage);
+
+    /**
+     * 읽지않은 메시지 수 증가
+     * @param chatRoomId
+     * @param senderUuid
+     */
+    void increaseUnreadCount(String chatRoomId, String senderUuid);
+
+    /**
+     * 읽지않은 메시지 수 초기화
+     * @param chatRoomId
+     * @param participantUuid
+     */
+    void resetUnreadCount(String chatRoomId, String participantUuid);
+
+}

@@ -53,7 +53,13 @@ public enum BaseResponseStatus {
     /**
      * Request 유효성 에러
      */
-    INVALID_REQUEST(HttpStatus.BAD_REQUEST, false, 1000, "잘못된 요청입니다.");
+    INVALID_REQUEST(HttpStatus.BAD_REQUEST, false, 1000, "잘못된 요청입니다."),
+
+    /**
+     * 채팅 에러
+     */
+    NO_EXIST_CHAT_ROOM(HttpStatus.NOT_FOUND, false, 1100, "존재하지 않는 채팅방입니다."),
+    NO_EXIST_PARTICIPANT(HttpStatus.NOT_FOUND, false, 1101, "존재하지 않는 참여자입니다.");
 
     private final HttpStatusCode httpStatusCode;
     private final boolean isSuccess;

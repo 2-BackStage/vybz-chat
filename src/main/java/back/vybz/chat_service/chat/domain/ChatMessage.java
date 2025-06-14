@@ -12,8 +12,8 @@ import java.time.Instant;
 
 @Getter
 @NoArgsConstructor
-@Document(collection = "dm_chat_message")
-public class DmChatMessage {
+@Document(collection = "chat_message")
+public class ChatMessage {
 
     @Id
     private String id;
@@ -31,12 +31,6 @@ public class DmChatMessage {
     private String senderUuid;
 
     /**
-     * 수신자 UUID
-     */
-    @Field(value = "receiver_uuid")
-    private String receiverUuid;
-
-    /**
      * 메시지 타입
      */
     @Field(value = "message_type")
@@ -52,7 +46,7 @@ public class DmChatMessage {
      * 읽음 여부
      */
     @Field(value = "read")
-    private Boolean read;
+    private boolean read = false;
 
     /**
      * 메시지 전송 시간
@@ -61,12 +55,15 @@ public class DmChatMessage {
     @Field(value = "sent_at")
     private Instant sentAt;
 
+    public void markAsRead() {
+        this.read = true;
+    }
+
     @Builder
-    public DmChatMessage(String id, String chatRoomId, String senderUuid, String receiverUuid, MessageType messageType, String content, Boolean read, Instant sentAt) {
+    public ChatMessage(String id, String chatRoomId, String senderUuid, MessageType messageType, String content, boolean read, Instant sentAt) {
         this.id = id;
         this.chatRoomId = chatRoomId;
         this.senderUuid = senderUuid;
-        this.receiverUuid = receiverUuid;
         this.messageType = messageType;
         this.content = content;
         this.read = read;

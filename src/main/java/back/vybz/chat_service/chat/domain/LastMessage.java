@@ -1,5 +1,6 @@
 package back.vybz.chat_service.chat.domain;
 
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
@@ -9,11 +10,6 @@ import java.time.Instant;
 @Getter
 @NoArgsConstructor
 public class LastMessage {
-
-    /**
-     * 발신자 uuid
-     */
-    private String senderUuid;
 
     /**
      * 내용
@@ -30,5 +26,12 @@ public class LastMessage {
      */
     @CreatedDate
     private Instant sentAt;
+
+    @Builder
+    public LastMessage(String content, MessageType messageType, Instant sentAt) {
+        this.content = content;
+        this.messageType = messageType;
+        this.sentAt = sentAt;
+    }
 
 }

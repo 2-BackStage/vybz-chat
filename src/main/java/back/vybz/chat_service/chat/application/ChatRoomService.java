@@ -21,13 +21,6 @@ public interface ChatRoomService {
     List<ResponseChatRoomDto> getChatRoomByParticipantUuid(String participantUuid);
 
     /**
-     * 상대방 UUID 조회
-     * @param chatRoomId
-     * @param senderUuid
-     */
-    String getOpponentUuid(String chatRoomId, String senderUuid);
-
-    /**
      * 마지막 메시지 업데이트
      * @param chatRoomId
      * @param chatMessage

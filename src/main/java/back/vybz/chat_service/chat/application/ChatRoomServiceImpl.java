@@ -60,18 +60,6 @@ public class ChatRoomServiceImpl implements ChatRoomService {
                 .toList();
     }
 
-    @Override
-    public String getOpponentUuid(String chatRoomId, String senderUuid) {
-        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
-                .orElseThrow(() -> new BaseException(BaseResponseStatus.NO_EXIST_CHAT_ROOM));
-
-        return chatRoom.getParticipant().stream()
-                .map(Participant::getParticipantUuid)
-                .filter(uuid -> !uuid.equals(senderUuid))
-                .findFirst()
-                .orElseThrow(() -> new BaseException(BaseResponseStatus.NO_EXIST_PARTICIPANT));
-    }
-
     /**
      * 마지막 메시지 업데이트
      * @param chatRoomId

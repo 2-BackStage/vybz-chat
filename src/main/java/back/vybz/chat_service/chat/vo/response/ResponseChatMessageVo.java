@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 @Getter
 public class ResponseChatMessageVo {
 
+    private String id;
     private String senderUuid;
     private MessageType messageType;
     private String content;
@@ -16,7 +17,8 @@ public class ResponseChatMessageVo {
     private LocalDateTime sentAt;
 
     @Builder
-    public ResponseChatMessageVo(String senderUuid, MessageType messageType, String content, boolean read, LocalDateTime sentAt) {
+    public ResponseChatMessageVo(String id, String senderUuid, MessageType messageType, String content, boolean read, LocalDateTime sentAt) {
+        this.id = id;
         this.senderUuid = senderUuid;
         this.messageType = messageType;
         this.content = content;

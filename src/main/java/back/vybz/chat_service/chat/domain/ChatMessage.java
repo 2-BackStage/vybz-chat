@@ -31,6 +31,12 @@ public class ChatMessage {
     private String senderUuid;
 
     /**
+     * 수신자 UUID
+     */
+    @Field(value = "receiver_uuid")
+    private String receiverUuid;
+
+    /**
      * 메시지 타입
      */
     @Field(value = "message_type")
@@ -59,11 +65,18 @@ public class ChatMessage {
         this.read = true;
     }
 
+    public void markReadIfReceiverOnline(boolean receiverOnline) {
+        if (receiverOnline) {
+            this.read = true;
+        }
+    }
+
     @Builder
-    public ChatMessage(String id, String chatRoomId, String senderUuid, MessageType messageType, String content, boolean read, Instant sentAt) {
+    public ChatMessage(String id, String chatRoomId, String senderUuid, String receiverUuid, MessageType messageType, String content, boolean read, Instant sentAt) {
         this.id = id;
         this.chatRoomId = chatRoomId;
         this.senderUuid = senderUuid;
+        this.receiverUuid = receiverUuid;
         this.messageType = messageType;
         this.content = content;
         this.read = read;

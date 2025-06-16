@@ -10,6 +10,7 @@ public class RequestSendMessageVo {
 
     private String chatRoomId;
     private String senderUuid;
+    private String receiverUuid;
     private MessageType messageType;
     private String content;
 

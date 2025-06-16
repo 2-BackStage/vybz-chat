@@ -32,6 +32,7 @@ public class RequestSendMessageDto {
         return RequestSendMessageDto.builder()
                 .chatRoomId(requestSendMessageVo.getChatRoomId())
                 .senderUuid(requestSendMessageVo.getSenderUuid())
+                .receiverUuid(requestSendMessageVo.getReceiverUuid())
                 .messageType(requestSendMessageVo.getMessageType())
                 .content(requestSendMessageVo.getContent())
                 .build();
@@ -41,6 +42,7 @@ public class RequestSendMessageDto {
         return ChatMessage.builder()
                 .chatRoomId(chatRoomId)
                 .senderUuid(senderUuid)
+                .receiverUuid(receiverUuid)
                 .messageType(messageType)
                 .content(content)
                 .sentAt(Instant.now())

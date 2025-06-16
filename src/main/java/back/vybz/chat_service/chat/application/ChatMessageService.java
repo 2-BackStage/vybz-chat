@@ -26,12 +26,10 @@ public interface ChatMessageService {
      * 채팅방 ID로 이전 메시지 조회
      * @param chatRoomId
      */
-    List<ResponseChatMessageDto> getPreviousChatMessageByChatRoomId(String chatRoomId);
+    Mono<List<ResponseChatMessageDto>> getPreviousChatMessageByChatRoomId(String chatRoomId, String participantUuid);
 
-    /**
-     * 채팅방 참여
-     * @param requestEnterChatRoomDto
-     */
-    Mono<Void> enterChatRoom(RequestEnterChatRoomDto requestEnterChatRoomDto);
+    void emitToSink(String chatRoomId, ResponseChatMessageDto responseChatMessageDto);
+
+    boolean isParticipantOnline(String chatRoomId, String participantUuid);
 
 }

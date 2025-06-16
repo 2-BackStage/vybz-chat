@@ -11,12 +11,15 @@ import back.vybz.chat_service.common.entity.BaseResponseEntity;
 import back.vybz.chat_service.common.entity.BaseResponseStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/chat-message")
@@ -43,7 +46,9 @@ public class ChatMessageController {
     @Operation(summary = "실시간 채팅방 메시지 구독 API", description = "실시간 채팅방 메시지 구독 API 입니다.", tags = {"Chat-Message-Service"})
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ResponseChatMessageVo> subscribeChatMessage(@RequestParam("chatRoomId") String chatRoomId, @RequestParam("participantUuid") String participantUuid) {
+        log.info("🔥 [Subscribe API] 호출됨: chatRoomId={}, participantUuid={}", chatRoomId, participantUuid);
         return chatMessageService.subscribeChatMessageByChatRoomId(chatRoomId, participantUuid)
+                .doOnSubscribe(sub -> log.info("⚡ Flux Subscribe 발생"))
                 .map(ResponseChatMessageDto::toVo);
     }
 
@@ -53,25 +58,14 @@ public class ChatMessageController {
      */
     // TODO : 커서 기반 페이징 처리로 전환 예정
     @Operation(summary = "채팅방 ID로 이전 메시지 조회 API", description = "채팅방 ID로 이전 메시지 조회 API 입니다.", tags = {"Chat-Message-Service"})
-    @GetMapping("/{chatRoomId}")
-    public BaseResponseEntity<List<ResponseChatMessageVo>> getPreviousChatMessage(@PathVariable("chatRoomId") String chatRoomId) {
-        List<ResponseChatMessageVo> responseChatMessageVo = chatMessageService.getPreviousChatMessageByChatRoomId(chatRoomId)
-                .stream()
-                .map(ResponseChatMessageDto::toVo)
-                .toList();
-        return new BaseResponseEntity<>(responseChatMessageVo);
-    }
-
-    /**
-     * 채팅방 참여
-     * @param requestEnterChatRoomVo
-     */
-    @Operation(summary = "채팅방 참여 API", description = "채팅방 참여 API 입니다.", tags = {"Chat-Message-Service"})
-    @PutMapping
-    public BaseResponseEntity<Void> enterChatRoom(@RequestBody RequestEnterChatRoomVo requestEnterChatRoomVo) {
-        chatMessageService.enterChatRoom(RequestEnterChatRoomDto.from(requestEnterChatRoomVo))
-                .subscribe();
-        return new BaseResponseEntity<>(BaseResponseStatus.SUCCESS);
+    @GetMapping("/search")
+    public Mono<BaseResponseEntity<List<ResponseChatMessageVo>>> getPreviousChatMessage(
+            @RequestParam("chatRoomId") String chatRoomId, @RequestParam("participantUuid") String participantUuid) {
+        return chatMessageService.getPreviousChatMessageByChatRoomId(chatRoomId, participantUuid)
+                .map(dtoList -> dtoList.stream()
+                        .map(ResponseChatMessageDto::toVo)
+                        .toList())
+                .map(BaseResponseEntity::new);
     }
 
 }

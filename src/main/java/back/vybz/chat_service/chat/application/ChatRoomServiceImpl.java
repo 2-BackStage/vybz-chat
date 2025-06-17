@@ -104,7 +104,10 @@ public class ChatRoomServiceImpl implements ChatRoomService {
         chatRoom.getParticipant().stream()
                 .filter(p -> p.getParticipantUuid().equals(requestLeaveChatRoomDto.getParticipantUuid()))
                 .findFirst()
-                .ifPresent(Participant::leave);
+                .ifPresent(participant -> {
+                    participant.leave();
+                    participant.resetUnreadCount();
+                });
         chatRoomRepository.save(chatRoom);
     }
 

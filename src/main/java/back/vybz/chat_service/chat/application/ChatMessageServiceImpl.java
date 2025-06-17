@@ -40,6 +40,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         // 메시지 객체 생성 및 읽음 상태 설정
         ChatMessage chatMessage = requestSendMessageDto.toDocument();
         chatMessage.markReadIfReceiverOnline(receiverOnline);
+        // 상대방이 채팅방을 나갔다면 재참여 처리
         chatRoomService.rejoinIfHidden(requestSendMessageDto.getChatRoomId(), requestSendMessageDto.getReceiverUuid());
         return chatMessageReactiveRepository.save(chatMessage)
                 .doOnSuccess(savedMessage -> {

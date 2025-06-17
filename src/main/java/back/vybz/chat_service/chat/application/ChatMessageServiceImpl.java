@@ -7,6 +7,7 @@ import back.vybz.chat_service.chat.dto.request.RequestSendMessageDto;
 import back.vybz.chat_service.chat.dto.response.ResponseChatMessageDto;
 import back.vybz.chat_service.chat.infrastructure.ChatMessageReactiveRepository;
 import back.vybz.chat_service.common.util.ChatSinkManager;
+import back.vybz.chat_service.common.util.CursorPageUtil;
 import back.vybz.chat_service.common.util.RedisUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +16,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 @Slf4j
@@ -82,13 +84,26 @@ public class ChatMessageServiceImpl implements ChatMessageService {
      * @param chatRoomId
      */
     @Override
-    public Mono<List<ResponseChatMessageDto>> getPreviousChatMessageByChatRoomId(String chatRoomId, String participantUuid) {
+    public Mono<CursorPageUtil<ResponseChatMessageDto, Instant>> getPreviousChatMessageByChatRoomId(String chatRoomId, String participantUuid, Instant sentAt, Integer pageSize) {
         // 읽지 않은 메시지 읽음으로 표시, 실시간 emit
         return markUnreadMessagesAsRead(chatRoomId, participantUuid)
                 // 읽지 않은 메시지 수 초기화
                 .then(resetUnreadCount(chatRoomId, participantUuid))
                 // 채팅방의 모든 메시지 조회
-                .then(fetchMessagesConsideringLeave(chatRoomId, participantUuid));
+                .then(fetchMessagesConsideringLeaveWithCursor(chatRoomId, participantUuid, sentAt, pageSize))
+                .map(messages -> {
+                    boolean hasNext = messages.size() > pageSize;
+                    if (hasNext) {
+                        messages = messages.subList(0, pageSize);
+                    }
+                    Instant nextCursor = hasNext ? messages.get(messages.size() - 1).getSentAt() : null;
+                    return CursorPageUtil.<ResponseChatMessageDto, Instant>builder()
+                            .content(messages)
+                            .nextCursor(nextCursor)
+                            .hasNext(hasNext)
+                            .pageSize(pageSize)
+                            .build();
+                });
     }
 
     /**
@@ -161,22 +176,25 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     }
 
     /**
-     * 채팅방의 메시지 조회, 참여자 퇴장 고려
+     * 채팅방의 메시지 조회, 참여자 퇴장 고려(커서 기반)
      * @param chatRoomId
+     * @param participantUuid
+     * @param sentAt
+     * @param pageSize
      */
     @Override
-    public Mono<List<ResponseChatMessageDto>> fetchMessagesConsideringLeave(String chatRoomId, String participantUuid) {
+    public Mono<List<ResponseChatMessageDto>> fetchMessagesConsideringLeaveWithCursor(String chatRoomId, String participantUuid, Instant sentAt, Integer pageSize) {
         return chatMessageReactiveRepository
                 .findFirstByChatRoomIdAndSenderUuidAndMessageTypeOrderBySentAtDesc(chatRoomId, participantUuid, MessageType.LEFT)
                 .flatMap(leftMessage ->
                     chatMessageReactiveRepository
-                            .findAllByChatRoomIdAndSentAtAfterOrderBySentAtDesc(chatRoomId, leftMessage.getSentAt())
+                            .findByChatRoomIdWithCursorAndAfterLeft(chatRoomId, sentAt, pageSize)
                             .map(ResponseChatMessageDto::from)
                             .collectList()
                 )
                 .switchIfEmpty(
                     chatMessageReactiveRepository
-                            .findAllByChatRoomIdOrderBySentAtDesc(chatRoomId)
+                            .findByChatRoomIdWithCursor(chatRoomId, sentAt, pageSize)
                             .map(ResponseChatMessageDto::from)
                             .collectList()
                 );

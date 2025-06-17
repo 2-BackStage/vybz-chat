@@ -1,4 +1,4 @@
-package back.vybz.chat_service.chat.domain.mongodb;
+package back.vybz.chat_service.chat.domain;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

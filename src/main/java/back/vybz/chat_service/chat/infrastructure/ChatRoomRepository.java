@@ -7,7 +7,7 @@ import org.springframework.data.mongodb.repository.Query;
 import java.util.List;
 import java.util.Optional;
 
-public interface ChatRoomRepository extends MongoRepository<ChatRoom, String> {
+public interface ChatRoomRepository extends MongoRepository<ChatRoom, String>, ChatRoomRepositoryCustom {
 
     /**
      * 두 사용자의 UUID를 기준으로 DM 채팅방 조회

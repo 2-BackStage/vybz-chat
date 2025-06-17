@@ -4,7 +4,9 @@ import back.vybz.chat_service.chat.domain.ChatMessage;
 import back.vybz.chat_service.chat.dto.request.RequestCreateChatRoomDto;
 import back.vybz.chat_service.chat.dto.request.RequestLeaveChatRoomDto;
 import back.vybz.chat_service.chat.dto.response.ResponseChatRoomDto;
+import back.vybz.chat_service.common.util.CursorPageUtil;
 
+import java.time.Instant;
 import java.util.List;
 
 public interface ChatRoomService {
@@ -19,7 +21,7 @@ public interface ChatRoomService {
      * 참여자 UUID로 채팅방 조회
      * @param participantUuid
      */
-    List<ResponseChatRoomDto> getChatRoomByParticipantUuid(String participantUuid);
+    CursorPageUtil<ResponseChatRoomDto, Instant> getChatRoomByParticipantUuidWithCursor(String participantUuid, Instant sentAt, Integer pageSize);
 
     /**
      * 마지막 메시지 업데이트

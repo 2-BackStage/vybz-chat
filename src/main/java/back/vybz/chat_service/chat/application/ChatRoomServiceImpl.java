@@ -9,9 +9,11 @@ import back.vybz.chat_service.chat.dto.response.ResponseChatRoomDto;
 import back.vybz.chat_service.chat.infrastructure.ChatRoomRepository;
 import back.vybz.chat_service.common.entity.BaseResponseStatus;
 import back.vybz.chat_service.common.exception.BaseException;
+import back.vybz.chat_service.common.util.CursorPageUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,13 +47,23 @@ public class ChatRoomServiceImpl implements ChatRoomService {
      * 참여자 UUID로 채팅방 목록 조회
      * @param participantUuid
      */
-    // TODO: 커서 기반 페이징 처리로 전환 예정
     @Override
-    public List<ResponseChatRoomDto> getChatRoomByParticipantUuid(String participantUuid) {
-        return chatRoomRepository.findAllByParticipantUserUuidAndHiddenFalse(participantUuid)
-                .stream()
+    public CursorPageUtil<ResponseChatRoomDto, Instant> getChatRoomByParticipantUuidWithCursor(String participantUuid, Instant sentAt, Integer pageSize) {
+        List<ChatRoom> chatRooms = chatRoomRepository.findByParticipantUuidWithCursor(participantUuid, sentAt, pageSize);
+        boolean hasNext = chatRooms.size() > pageSize;
+        if (hasNext) {
+            chatRooms = chatRooms.subList(0, pageSize);
+        }
+        List<ResponseChatRoomDto> responseChatRoomDto = chatRooms.stream()
                 .map(ResponseChatRoomDto::from)
                 .toList();
+        Instant nextCursor = hasNext ? chatRooms.get(pageSize - 1).getLastMessage().getSentAt() : null;
+        return CursorPageUtil.<ResponseChatRoomDto, Instant>builder()
+                .content(responseChatRoomDto)
+                .nextCursor(nextCursor)
+                .hasNext(hasNext)
+                .pageSize(pageSize)
+                .build();
     }
 
     /**

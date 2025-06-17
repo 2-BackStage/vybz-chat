@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
@@ -15,6 +17,10 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 @Document(collection = "chat_room")
+@CompoundIndex(
+        name = "participant_uuid_hidden_sentAt_idx",
+        def = "{'participant.participantUuid': 1, 'participant.hidden': 1, 'lastMessage.sentAt': -1}"
+)
 public class ChatRoom {
 
     @Id

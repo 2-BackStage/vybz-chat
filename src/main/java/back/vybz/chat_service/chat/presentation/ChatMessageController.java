@@ -1,17 +1,14 @@
 package back.vybz.chat_service.chat.presentation;
 
 import back.vybz.chat_service.chat.application.ChatMessageService;
-import back.vybz.chat_service.chat.dto.request.RequestEnterChatRoomDto;
 import back.vybz.chat_service.chat.dto.request.RequestSendMessageDto;
 import back.vybz.chat_service.chat.dto.response.ResponseChatMessageDto;
-import back.vybz.chat_service.chat.vo.request.RequestEnterChatRoomVo;
 import back.vybz.chat_service.chat.vo.request.RequestSendMessageVo;
 import back.vybz.chat_service.chat.vo.response.ResponseChatMessageVo;
 import back.vybz.chat_service.common.entity.BaseResponseEntity;
 import back.vybz.chat_service.common.entity.BaseResponseStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
@@ -19,7 +16,6 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 
-@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/chat-message")
@@ -46,9 +42,7 @@ public class ChatMessageController {
     @Operation(summary = "실시간 채팅방 메시지 구독 API", description = "실시간 채팅방 메시지 구독 API 입니다.", tags = {"Chat-Message-Service"})
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ResponseChatMessageVo> subscribeChatMessage(@RequestParam("chatRoomId") String chatRoomId, @RequestParam("participantUuid") String participantUuid) {
-        log.info("🔥 [Subscribe API] 호출됨: chatRoomId={}, participantUuid={}", chatRoomId, participantUuid);
         return chatMessageService.subscribeChatMessageByChatRoomId(chatRoomId, participantUuid)
-                .doOnSubscribe(sub -> log.info("⚡ Flux Subscribe 발생"))
                 .map(ResponseChatMessageDto::toVo);
     }
 

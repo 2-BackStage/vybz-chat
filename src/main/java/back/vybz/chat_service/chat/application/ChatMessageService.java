@@ -1,6 +1,5 @@
 package back.vybz.chat_service.chat.application;
 
-import back.vybz.chat_service.chat.dto.request.RequestEnterChatRoomDto;
 import back.vybz.chat_service.chat.dto.request.RequestSendMessageDto;
 import back.vybz.chat_service.chat.dto.response.ResponseChatMessageDto;
 import reactor.core.publisher.Flux;
@@ -28,8 +27,51 @@ public interface ChatMessageService {
      */
     Mono<List<ResponseChatMessageDto>> getPreviousChatMessageByChatRoomId(String chatRoomId, String participantUuid);
 
+    /**
+     * 싱크로 메시지 발행
+     * @param chatRoomId
+     * @param responseChatMessageDto
+     */
     void emitToSink(String chatRoomId, ResponseChatMessageDto responseChatMessageDto);
 
-    boolean isParticipantOnline(String chatRoomId, String participantUuid);
+    /**
+     * 채팅방 참여자 등록
+     * @param chatRoomId
+     * @param participantUuid
+     */
+    void registerParticipant(String chatRoomId, String participantUuid);
+
+    /**
+     * 채팅방 참여자 등록 해제
+     * @param chatRoomId
+     * @param participantUuid
+     */
+    void unregisterParticipant(String chatRoomId, String participantUuid);
+
+    /**
+     * 핑 메시지 발행
+     * @param chatRoomId
+     */
+    Flux<ResponseChatMessageDto> makePingFlux(String chatRoomId);
+
+    /**
+     * 읽지 않은 메시지를 읽음으로 표시, 실시간 emit
+     * @param chatRoomId
+     * @param participantUuid
+     */
+    Mono<Void> markUnreadMessagesAsRead(String chatRoomId, String participantUuid);
+
+    /**
+     * 읽지않은 메시지 수 초기화
+     * @param chatRoomId
+     * @param participantUuid
+     */
+    Mono<Void> resetUnreadCount(String chatRoomId, String participantUuid);
+
+    /**
+     * 채팅방의 메시지 최신순으로 조회
+     * @param chatRoomId
+     */
+    Mono<List<ResponseChatMessageDto>> fetchAllMessages(String chatRoomId);
 
 }

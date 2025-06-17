@@ -22,31 +22,29 @@ public class ChatMessageChangeStreamListener {
 
     private final ReactiveMongoTemplate reactiveMongoTemplate;
     private final ChatMessageService chatMessageService;
+    private final ChatMessageChangeFilter chatMessageChangeFilter;
 
+    /**
+     * 컴포넌트 초기화 시점에 ChangeStream 구독
+     */
     @PostConstruct
     public void listenToChanges() {
+        // ChatMessage Collection 대상으로 Flux<ChangeStreamEvent<ChatMessage>> 생성
         reactiveMongoTemplate.changeStream(ChatMessage.class)
                 .watchCollection(ChatMessage.class)
                 .listen()
                 .doOnSubscribe(sub -> log.info("👂 ChangeStream 구독 시작됨"))
                 .doOnEach(signal -> log.debug("🚨 ChangeStream Signal 발생: {}", signal))
-                .filter(event -> {
-                    if (event.getRaw() == null || event.getRaw().getOperationType() == null) return false;
-                    String op = event.getRaw().getOperationType().getValue();
-                    return "insert".equals(op) || "update".equals(op);
-                })
-                .filter(event -> {
-                    String op = event.getRaw().getOperationType().getValue();
-                    ChatMessage body = event.getBody();
-                    if (body == null) return false;
-
-                    boolean shouldEmit = "insert".equals(op) || ("update".equals(op) && body.isRead());
-                    log.info("🔎 ChangeStream 필터 조건 검사: op={}, read={}, emitToSink={}", op, body.isRead(), shouldEmit);
-                    return shouldEmit;
-                })
+                // insert 또는 update 이벤트인지 필터링
+                .filter(chatMessageChangeFilter::isRelevantOperation)
+                // insert는 무조건, update는 read=true일 때만 emit 허용
+                .filter(chatMessageChangeFilter::shouldEmit)
+                // 실제 메시지 데이터(body)만 추출
                 .map(ChangeStreamEvent::getBody)
                 .filter(Objects::nonNull)
+                // 메시지를 클라이언트로 보낼 DTO로 변환
                 .map(ResponseChatMessageDto::from)
+                // Sink에 emit하여 SSE 구독자에게 전송
                 .doOnNext(dto -> {
                     log.info("📥 [ChangeStream] emitToSink to sink: chatRoomId={}, read={}", dto.getChatRoomId(), dto.isRead());
                     chatMessageService.emitToSink(dto.getChatRoomId(), dto);

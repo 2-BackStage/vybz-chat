@@ -1,8 +1,10 @@
 package back.vybz.chat_service.chat.presentation;
 
 import back.vybz.chat_service.chat.application.ChatMessageService;
+import back.vybz.chat_service.chat.dto.request.RequestLeaveChatRoomDto;
 import back.vybz.chat_service.chat.dto.request.RequestSendMessageDto;
 import back.vybz.chat_service.chat.dto.response.ResponseChatMessageDto;
+import back.vybz.chat_service.chat.vo.request.RequestLeaveChatRoomVo;
 import back.vybz.chat_service.chat.vo.request.RequestSendMessageVo;
 import back.vybz.chat_service.chat.vo.response.ResponseChatMessageVo;
 import back.vybz.chat_service.common.entity.BaseResponseEntity;
@@ -51,7 +53,7 @@ public class ChatMessageController {
      * @param chatRoomId
      */
     // TODO : 커서 기반 페이징 처리로 전환 예정
-    @Operation(summary = "채팅방 ID로 이전 메시지 조회 API", description = "채팅방 ID로 이전 메시지 조회 API 입니다.", tags = {"Chat-Message-Service"})
+    @Operation(summary = "채팅방 ID로 이전 메시지 조회 API", description = "채팅방 ID로 이전 메시지 조회(퇴장 시 퇴장 이후의 메시지 조회) API 입니다.", tags = {"Chat-Message-Service"})
     @GetMapping("/search")
     public Mono<BaseResponseEntity<List<ResponseChatMessageVo>>> getPreviousChatMessage(
             @RequestParam("chatRoomId") String chatRoomId, @RequestParam("participantUuid") String participantUuid) {

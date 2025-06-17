@@ -1,5 +1,6 @@
 package back.vybz.chat_service.chat.application;
 
+import back.vybz.chat_service.chat.dto.request.RequestLeaveChatRoomDto;
 import back.vybz.chat_service.chat.dto.request.RequestSendMessageDto;
 import back.vybz.chat_service.chat.dto.response.ResponseChatMessageDto;
 import reactor.core.publisher.Flux;
@@ -69,9 +70,15 @@ public interface ChatMessageService {
     Mono<Void> resetUnreadCount(String chatRoomId, String participantUuid);
 
     /**
-     * 채팅방의 메시지 최신순으로 조회
+     * 채팅방의 메시지 조회, 참여자 퇴장 고려
      * @param chatRoomId
      */
-    Mono<List<ResponseChatMessageDto>> fetchAllMessages(String chatRoomId);
+    Mono<List<ResponseChatMessageDto>> fetchMessagesConsideringLeave(String chatRoomId, String participantUuid);
+
+    /**
+     * 채팅방 나가기 메시지 발행
+     * @param requestLeaveChatRoomDto
+     */
+    Mono<Void> leaveChatRoomMessage(RequestLeaveChatRoomDto requestLeaveChatRoomDto);
 
 }

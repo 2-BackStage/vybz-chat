@@ -18,12 +18,26 @@ public class Participant {
      */
     private Integer unreadCount;
 
+    /**
+     * 숨김 처리
+     */
+    @Builder.Default
+    private boolean hidden = false;
+
     public void incrementUnreadCount() {
         this.unreadCount++;
     }
 
     public void resetUnreadCount() {
         this.unreadCount = 0;
+    }
+
+    public void leave() {
+        this.hidden = true;
+    }
+
+    public void rejoin() {
+        this.hidden = false;
     }
 
 }

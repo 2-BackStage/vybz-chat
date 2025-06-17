@@ -15,11 +15,13 @@ public class RequestCreateChatRoomDto {
 
     private String senderUuid;
     private String receiverUuid;
+    private boolean hidden;
 
     @Builder
-    public RequestCreateChatRoomDto(String senderUuid, String receiverUuid) {
+    public RequestCreateChatRoomDto(String senderUuid, String receiverUuid, boolean hidden) {
         this.senderUuid = senderUuid;
         this.receiverUuid = receiverUuid;
+        this.hidden = hidden;
     }
 
     public static RequestCreateChatRoomDto from(RequestCreateChatRoomVo requestCreateChatRoomVo) {
@@ -32,8 +34,8 @@ public class RequestCreateChatRoomDto {
     public ChatRoom toDocument() {
         return ChatRoom.builder()
                 .participant(List.of(
-                        new Participant(senderUuid, 0),
-                        new Participant(receiverUuid, 0)
+                        new Participant(senderUuid, 0, hidden),
+                        new Participant(receiverUuid, 0, hidden)
                 ))
                 .lastMessage(null)
                 .build();

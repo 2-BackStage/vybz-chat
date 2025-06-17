@@ -1,6 +1,8 @@
 package back.vybz.chat_service.chat.application;
 
 import back.vybz.chat_service.chat.domain.ChatMessage;
+import back.vybz.chat_service.chat.domain.MessageType;
+import back.vybz.chat_service.chat.dto.request.RequestLeaveChatRoomDto;
 import back.vybz.chat_service.chat.dto.request.RequestSendMessageDto;
 import back.vybz.chat_service.chat.dto.response.ResponseChatMessageDto;
 import back.vybz.chat_service.chat.infrastructure.ChatMessageReactiveRepository;
@@ -11,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.Sinks;
 
 import java.time.Duration;
 import java.util.List;
@@ -39,6 +40,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         // 메시지 객체 생성 및 읽음 상태 설정
         ChatMessage chatMessage = requestSendMessageDto.toDocument();
         chatMessage.markReadIfReceiverOnline(receiverOnline);
+        chatRoomService.rejoinIfHidden(requestSendMessageDto.getChatRoomId(), requestSendMessageDto.getReceiverUuid());
         return chatMessageReactiveRepository.save(chatMessage)
                 .doOnSuccess(savedMessage -> {
                     // 채팅방 마지막 메시지 갱신
@@ -85,7 +87,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 // 읽지 않은 메시지 수 초기화
                 .then(resetUnreadCount(chatRoomId, participantUuid))
                 // 채팅방의 모든 메시지 조회
-                .then(fetchAllMessages(chatRoomId));
+                .then(fetchMessagesConsideringLeave(chatRoomId, participantUuid));
     }
 
     /**
@@ -158,14 +160,34 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     }
 
     /**
-     * 채팅방의 메시지 최신순으로 조회
+     * 채팅방의 메시지 조회, 참여자 퇴장 고려
      * @param chatRoomId
      */
     @Override
-    public Mono<List<ResponseChatMessageDto>> fetchAllMessages(String chatRoomId) {
-        return chatMessageReactiveRepository.findAllByChatRoomIdOrderBySentAtDesc(chatRoomId)
-                .map(ResponseChatMessageDto::from)
-                .collectList();
+    public Mono<List<ResponseChatMessageDto>> fetchMessagesConsideringLeave(String chatRoomId, String participantUuid) {
+        return chatMessageReactiveRepository
+                .findFirstByChatRoomIdAndSenderUuidAndMessageTypeOrderBySentAtDesc(chatRoomId, participantUuid, MessageType.LEFT)
+                .flatMap(leftMessage ->
+                    chatMessageReactiveRepository
+                            .findAllByChatRoomIdAndSentAtAfterOrderBySentAtDesc(chatRoomId, leftMessage.getSentAt())
+                            .map(ResponseChatMessageDto::from)
+                            .collectList()
+                )
+                .switchIfEmpty(
+                    chatMessageReactiveRepository
+                            .findAllByChatRoomIdOrderBySentAtDesc(chatRoomId)
+                            .map(ResponseChatMessageDto::from)
+                            .collectList()
+                );
+    }
+
+    /**
+     * 채팅방 나가기 메시지 발행
+     * @param requestLeaveChatRoomDto
+     */
+    @Override
+    public Mono<Void> leaveChatRoomMessage(RequestLeaveChatRoomDto requestLeaveChatRoomDto) {
+        return chatMessageReactiveRepository.save(requestLeaveChatRoomDto.toDocument()).then();
     }
 
 }

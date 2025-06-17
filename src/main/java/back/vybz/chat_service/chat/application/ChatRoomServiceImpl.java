@@ -4,6 +4,7 @@ import back.vybz.chat_service.chat.domain.ChatMessage;
 import back.vybz.chat_service.chat.domain.ChatRoom;
 import back.vybz.chat_service.chat.domain.Participant;
 import back.vybz.chat_service.chat.dto.request.RequestCreateChatRoomDto;
+import back.vybz.chat_service.chat.dto.request.RequestLeaveChatRoomDto;
 import back.vybz.chat_service.chat.dto.response.ResponseChatRoomDto;
 import back.vybz.chat_service.chat.infrastructure.ChatRoomRepository;
 import back.vybz.chat_service.common.entity.BaseResponseStatus;
@@ -28,23 +29,16 @@ public class ChatRoomServiceImpl implements ChatRoomService {
     public void createChatRoom(RequestCreateChatRoomDto requestCreateChatRoomDto) {
         Optional<ChatRoom> existChatRoom = chatRoomRepository.findChatRoomByTwoParticipants(
                 requestCreateChatRoomDto.getReceiverUuid(), requestCreateChatRoomDto.getSenderUuid());
-
         if (existChatRoom.isPresent()) {
-            return;
+            ChatRoom chatRoom = existChatRoom.get();
+            boolean allHidden = chatRoom.getParticipant().stream()
+                    .allMatch(Participant::isHidden);
+            if (!allHidden) {
+                return;
+            }
         }
-
-        List<Participant> participants = List.of(
-                new Participant(requestCreateChatRoomDto.getReceiverUuid(), 0),
-                new Participant(requestCreateChatRoomDto.getSenderUuid(), 0)
-        );
-
-        ChatRoom chatRoom = ChatRoom.builder()
-                .participant(participants)
-                .lastMessage(null)
-                .build();
-
+        ChatRoom chatRoom = requestCreateChatRoomDto.toDocument();
         chatRoomRepository.save(chatRoom);
-
     }
 
     /**
@@ -54,7 +48,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
     // TODO: 커서 기반 페이징 처리로 전환 예정
     @Override
     public List<ResponseChatRoomDto> getChatRoomByParticipantUuid(String participantUuid) {
-        return chatRoomRepository.findAllByParticipantUserUuid(participantUuid)
+        return chatRoomRepository.findAllByParticipantUserUuidAndHiddenFalse(participantUuid)
                 .stream()
                 .map(ResponseChatRoomDto::from)
                 .toList();
@@ -69,7 +63,6 @@ public class ChatRoomServiceImpl implements ChatRoomService {
     public void updateLastMessage(String chatRoomId, ChatMessage chatMessage) {
         ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new BaseException(BaseResponseStatus.NO_EXIST_CHAT_ROOM));
-
         chatRoom.updateLastMessage(chatMessage);
         chatRoomRepository.save(chatRoom);
     }
@@ -83,7 +76,6 @@ public class ChatRoomServiceImpl implements ChatRoomService {
     public void increaseUnreadCount(String chatRoomId, String senderUuid) {
         ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new BaseException(BaseResponseStatus.NO_EXIST_CHAT_ROOM));
-
         chatRoom.increaseUnreadCountExcept(senderUuid);
         chatRoomRepository.save(chatRoom);
     }
@@ -97,9 +89,39 @@ public class ChatRoomServiceImpl implements ChatRoomService {
     public void resetUnreadCount(String chatRoomId, String participantUuid) {
         ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new BaseException(BaseResponseStatus.NO_EXIST_CHAT_ROOM));
-
         chatRoom.resetUnreadCount(participantUuid);
         chatRoomRepository.save(chatRoom);
+    }
+
+    /**
+     * 채팅방 나가기
+     * @param requestLeaveChatRoomDto
+     */
+    @Override
+    public void leaveChatRoom(RequestLeaveChatRoomDto requestLeaveChatRoomDto) {
+        ChatRoom chatRoom = chatRoomRepository.findById(requestLeaveChatRoomDto.getChatRoomId())
+                .orElseThrow(() -> new BaseException(BaseResponseStatus.NO_EXIST_CHAT_ROOM));
+        chatRoom.getParticipant().stream()
+                .filter(p -> p.getParticipantUuid().equals(requestLeaveChatRoomDto.getParticipantUuid()))
+                .findFirst()
+                .ifPresent(Participant::leave);
+        chatRoomRepository.save(chatRoom);
+    }
+
+    /**
+     * 채팅방 재참여
+     * @param chatRoomId
+     * @param participantUuid
+     */
+    @Override
+    public void rejoinIfHidden(String chatRoomId, String participantUuid) {
+       ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+               .orElseThrow(() -> new BaseException(BaseResponseStatus.NO_EXIST_CHAT_ROOM));
+       chatRoom.getParticipant().stream()
+                .filter(p -> p.getParticipantUuid().equals(participantUuid))
+                .findFirst()
+                .ifPresent(Participant::rejoin);
+         chatRoomRepository.save(chatRoom);
     }
 
 }

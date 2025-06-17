@@ -19,10 +19,9 @@ public interface ChatRoomRepository extends MongoRepository<ChatRoom, String> {
 
     /**
      * 특정 사용자의 UUID를 기준으로 DM 채팅방 목록 조회
-     *
      * @param participantUuid
      */
-    @Query(value = "{ 'participant.participantUuid': ?0 }")
-    List<ChatRoom> findAllByParticipantUserUuid(String participantUuid);
+    @Query(value = "{ 'participant': { $elemMatch: { 'participantUuid': ?0, 'hidden': false } } }")
+    List<ChatRoom> findAllByParticipantUserUuidAndHiddenFalse(String participantUuid);
 
 }

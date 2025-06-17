@@ -2,6 +2,7 @@ package back.vybz.chat_service.chat.application;
 
 import back.vybz.chat_service.chat.domain.ChatMessage;
 import back.vybz.chat_service.chat.dto.request.RequestCreateChatRoomDto;
+import back.vybz.chat_service.chat.dto.request.RequestLeaveChatRoomDto;
 import back.vybz.chat_service.chat.dto.response.ResponseChatRoomDto;
 
 import java.util.List;
@@ -40,5 +41,18 @@ public interface ChatRoomService {
      * @param participantUuid
      */
     void resetUnreadCount(String chatRoomId, String participantUuid);
+
+    /**
+     * 채팅방 나가기
+     * @param requestLeaveChatRoomDto
+     */
+    void leaveChatRoom(RequestLeaveChatRoomDto requestLeaveChatRoomDto);
+
+    /**
+     * 채팅방 재참여
+     * @param chatRoomId
+     * @param participantUuid
+     */
+    void rejoinIfHidden(String chatRoomId, String participantUuid);
 
 }

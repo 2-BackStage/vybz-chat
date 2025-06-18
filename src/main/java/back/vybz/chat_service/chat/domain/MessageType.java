@@ -11,8 +11,7 @@ public enum MessageType {
     IMAGE("이미지"),
     VIDEO("비디오"),
     SYSTEM("시스템 메시지"),
-    LEFT("참여자 나감"),
-    PING("핑");
+    LEFT("참여자 나감");
 
     private final String description;
 

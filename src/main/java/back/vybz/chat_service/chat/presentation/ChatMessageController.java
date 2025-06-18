@@ -9,13 +9,16 @@ import back.vybz.chat_service.chat.vo.request.RequestSendMessageVo;
 import back.vybz.chat_service.chat.vo.response.ResponseChatMessageVo;
 import back.vybz.chat_service.common.entity.BaseResponseEntity;
 import back.vybz.chat_service.common.entity.BaseResponseStatus;
+import back.vybz.chat_service.common.util.CursorPageUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
 import java.util.List;
 
 @RestController
@@ -52,16 +55,14 @@ public class ChatMessageController {
      * 채팅방 ID로 이전 메시지 조회
      * @param chatRoomId
      */
-    // TODO : 커서 기반 페이징 처리로 전환 예정
-    @Operation(summary = "채팅방 ID로 이전 메시지 조회 API", description = "채팅방 ID로 이전 메시지 조회(퇴장 시 퇴장 이후의 메시지 조회) API 입니다.", tags = {"Chat-Message-Service"})
+    @Operation(summary = "채팅방 ID로 이전 메시지 조회 API", description = "채팅방 ID로 이전 메시지 조회(퇴장 시 퇴장 이후의 메시지 조회, 커서 기반) API 입니다.", tags = {"Chat-Message-Service"})
     @GetMapping("/search")
-    public Mono<BaseResponseEntity<List<ResponseChatMessageVo>>> getPreviousChatMessage(
-            @RequestParam("chatRoomId") String chatRoomId, @RequestParam("participantUuid") String participantUuid) {
-        return chatMessageService.getPreviousChatMessageByChatRoomId(chatRoomId, participantUuid)
-                .map(dtoList -> dtoList.stream()
-                        .map(ResponseChatMessageDto::toVo)
-                        .toList())
-                .map(BaseResponseEntity::new);
+    public Mono<BaseResponseEntity<CursorPageUtil<ResponseChatMessageVo, Instant>>> getPreviousChatMessage(
+            @RequestParam("chatRoomId") String chatRoomId, @RequestParam("participantUuid") String participantUuid,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant sentAt,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        return chatMessageService.getPreviousChatMessageByChatRoomId(chatRoomId, participantUuid, sentAt, pageSize)
+                .map(responseDto -> new BaseResponseEntity<>(responseDto.map(ResponseChatMessageDto::toVo)));
     }
 
 }

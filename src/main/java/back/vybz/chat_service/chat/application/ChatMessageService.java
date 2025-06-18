@@ -3,9 +3,11 @@ package back.vybz.chat_service.chat.application;
 import back.vybz.chat_service.chat.dto.request.RequestLeaveChatRoomDto;
 import back.vybz.chat_service.chat.dto.request.RequestSendMessageDto;
 import back.vybz.chat_service.chat.dto.response.ResponseChatMessageDto;
+import back.vybz.chat_service.common.util.CursorPageUtil;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
 import java.util.List;
 
 public interface ChatMessageService {
@@ -23,10 +25,10 @@ public interface ChatMessageService {
     Flux<ResponseChatMessageDto> subscribeChatMessageByChatRoomId(String chatRoomId, String participantUuid);
 
     /**
-     * 채팅방 ID로 이전 메시지 조회
+     * 채팅방 ID로 이전 메시지 조회(커서 기반)
      * @param chatRoomId
      */
-    Mono<List<ResponseChatMessageDto>> getPreviousChatMessageByChatRoomId(String chatRoomId, String participantUuid);
+    Mono<CursorPageUtil<ResponseChatMessageDto, Instant>> getPreviousChatMessageByChatRoomId(String chatRoomId, String participantUuid, Instant sentAt, Integer pageSize);
 
     /**
      * 싱크로 메시지 발행
@@ -70,10 +72,9 @@ public interface ChatMessageService {
     Mono<Void> resetUnreadCount(String chatRoomId, String participantUuid);
 
     /**
-     * 채팅방의 메시지 조회, 참여자 퇴장 고려
-     * @param chatRoomId
+     * 채팅방의 메시지 조회, 참여자 퇴장 고려(커서 기반)
      */
-    Mono<List<ResponseChatMessageDto>> fetchMessagesConsideringLeave(String chatRoomId, String participantUuid);
+    Mono<List<ResponseChatMessageDto>> fetchMessagesConsideringLeaveWithCursor(String chatRoomId, String participantUuid, Instant sentAt, Integer pageSize);
 
     /**
      * 채팅방 나가기 메시지 발행

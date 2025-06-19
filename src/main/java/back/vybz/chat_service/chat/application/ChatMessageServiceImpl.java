@@ -9,6 +9,8 @@ import back.vybz.chat_service.chat.infrastructure.ChatMessageReactiveRepository;
 import back.vybz.chat_service.common.util.ChatSinkManager;
 import back.vybz.chat_service.common.util.CursorPageUtil;
 import back.vybz.chat_service.common.util.RedisUtil;
+import back.vybz.chat_service.kafka.event.ChatEvent;
+import back.vybz.chat_service.kafka.producer.ChatKafkaProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     private final ChatRoomService chatRoomService;
     private final ChatSinkManager chatSinkManager;
     private final ChatMessageReactiveRepository chatMessageReactiveRepository;
+    private final ChatKafkaProducer chatKafkaProducer;
 
 
     /**
@@ -37,22 +40,21 @@ public class ChatMessageServiceImpl implements ChatMessageService {
      */
     @Override
     public Mono<Void> sendMessage(RequestSendMessageDto requestSendMessageDto) {
-        // 상대방이 채팅 방에 들어왔는지 확인
         boolean receiverOnline = redisUtil.isParticipantOnline(requestSendMessageDto.getChatRoomId(), requestSendMessageDto.getReceiverUuid());
-        // 메시지 객체 생성 및 읽음 상태 설정
-        ChatMessage chatMessage = requestSendMessageDto.toDocument();
-        chatMessage.markReadIfReceiverOnline(receiverOnline);
-        // 상대방이 채팅방을 나갔다면 재참여 처리
         chatRoomService.rejoinIfHidden(requestSendMessageDto.getChatRoomId(), requestSendMessageDto.getReceiverUuid());
-        return chatMessageReactiveRepository.save(chatMessage)
-                .doOnSuccess(savedMessage -> {
-                    // 채팅방 마지막 메시지 갱신
-                    chatRoomService.updateLastMessage(requestSendMessageDto.getChatRoomId(), savedMessage);
-                    if (!receiverOnline) {
-                        chatRoomService.increaseUnreadCount(requestSendMessageDto.getChatRoomId(), requestSendMessageDto.getSenderUuid());
-                    }
-                })
-                .then();
+
+        ChatEvent event = ChatEvent.builder()
+                .chatRoomId(requestSendMessageDto.getChatRoomId())
+                .senderUuid(requestSendMessageDto.getSenderUuid())
+                .receiverUuid(requestSendMessageDto.getReceiverUuid())
+                .content(requestSendMessageDto.getContent())
+                .messageType(requestSendMessageDto.getMessageType())
+                .read(receiverOnline)
+                .sentAt(Instant.now())
+                .build();
+
+        chatKafkaProducer.sendChatMessage(event);
+        return Mono.empty();
     }
 
     /**

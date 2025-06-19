@@ -59,7 +59,8 @@ public enum BaseResponseStatus {
      * 채팅 에러
      */
     NO_EXIST_CHAT_ROOM(HttpStatus.NOT_FOUND, false, 1100, "존재하지 않는 채팅방입니다."),
-    NO_EXIST_PARTICIPANT(HttpStatus.NOT_FOUND, false, 1101, "존재하지 않는 참여자입니다.");
+    NO_EXIST_PARTICIPANT(HttpStatus.NOT_FOUND, false, 1101, "존재하지 않는 참여자입니다."),
+    FAILED_TO_SEND_MESSAGE(HttpStatus.INTERNAL_SERVER_ERROR, false, 1102, "메시지 전송에 실패하였습니다.");
 
     private final HttpStatusCode httpStatusCode;
     private final boolean isSuccess;

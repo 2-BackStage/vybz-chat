@@ -53,24 +53,8 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 .sentAt(Instant.now())
                 .build();
 
-        chatKafkaProducer.sendChatMessage(event); // 비동기 전송
-        return Mono.empty(); // 저장 및 후처리는 KafkaConsumer가 수행
-//        // 상대방이 채팅 방에 들어왔는지 확인
-//        boolean receiverOnline = redisUtil.isParticipantOnline(requestSendMessageDto.getChatRoomId(), requestSendMessageDto.getReceiverUuid());
-//        // 메시지 객체 생성 및 읽음 상태 설정
-//        ChatMessage chatMessage = requestSendMessageDto.toDocument();
-//        chatMessage.markReadIfReceiverOnline(receiverOnline);
-//        // 상대방이 채팅방을 나갔다면 재참여 처리
-//        chatRoomService.rejoinIfHidden(requestSendMessageDto.getChatRoomId(), requestSendMessageDto.getReceiverUuid());
-//        return chatMessageReactiveRepository.save(chatMessage)
-//                .doOnSuccess(savedMessage -> {
-//                    // 채팅방 마지막 메시지 갱신
-//                    chatRoomService.updateLastMessage(requestSendMessageDto.getChatRoomId(), savedMessage);
-//                    if (!receiverOnline) {
-//                        chatRoomService.increaseUnreadCount(requestSendMessageDto.getChatRoomId(), requestSendMessageDto.getSenderUuid());
-//                    }
-//                })
-//                .then();
+        chatKafkaProducer.sendChatMessage(event);
+        return Mono.empty();
     }
 
     /**

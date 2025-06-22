@@ -1,0 +1,77 @@
+name: CI/CD Docker Deploy to EC2 comment-read-service
+
+on:
+  push:
+    branches: [ dev ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. GitHub 리포지토리 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Docker Hub 로그인
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      # 3. 도커 이미지 빌드 & 푸시 - chat-service
+      - name: Build & Push chat-service
+        run: |
+          
+          # resources 디렉토리가 없을 경우 생성
+          mkdir -p src/main/resources 
+          
+          # GitHub Secrets에 등록한 application.yml 내용을 복사
+          echo "${{ secrets.CHAT_APPLICATION_YML }}" | base64 -d > src/main/resources/application.yml
+          
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/chat-service:${{ github.sha }} .
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/chat-service:${{ github.sha }}
+
+      # 4. EC2에 SSH 접속 & 배포
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/vybz/chat-service
+            
+            export CHAT_IMAGE_TAG=${{ github.sha }}
+            docker-compose down
+            docker-compose rm -f
+            
+            docker images "${{ secrets.DOCKER_HUB_USERNAME }}/chat-service" --format "{{.ID}}" | uniq | tail -n +2 | xargs -r docker rmi -f
+            
+            docker image prune -af
+            
+            docker-compose pull chat-prod
+            docker-compose up -d chat-prod
+
+      # 5-1. 성공 시 알림
+      - name: Send Discord Success Notification
+        if: success()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_BACK }}
+        with:
+          args: |
+            ✅ [${{ github.actor }}]님이 `${{ github.repository }}` 레포지토리에서 **배포를 완료**했어요!
+            🔗 커밋: ${{ github.sha }}
+
+      # 5-2. 실패 시 알림
+      - name: Send Discord Failure Notification
+        if: failure()
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_BACK }}
+        with:
+          args: |
+            ❌ [${{ github.actor }}]님이 `${{ github.repository }}` 레포지토리에서 **배포에 실패**했어요!
+            🔍 에러 로그를 확인해주세요.

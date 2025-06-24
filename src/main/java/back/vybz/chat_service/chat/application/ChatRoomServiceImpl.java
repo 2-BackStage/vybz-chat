@@ -129,14 +129,17 @@ public class ChatRoomServiceImpl implements ChatRoomService {
      * @param participantUuid
      */
     @Override
-    public void rejoinIfHidden(String chatRoomId, String participantUuid) {
-       ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
-               .orElseThrow(() -> new BaseException(BaseResponseStatus.NO_EXIST_CHAT_ROOM));
-       chatRoom.getParticipant().stream()
-                .filter(p -> p.getParticipantUuid().equals(participantUuid))
-                .findFirst()
-                .ifPresent(Participant::rejoin);
-         chatRoomRepository.save(chatRoom);
+    public void rejoinIfHidden(String chatRoomId, List<String> participantUuid) {
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new BaseException(BaseResponseStatus.NO_EXIST_CHAT_ROOM));
+
+        chatRoom.getParticipant().forEach(p -> {
+            if (participantUuid.contains(p.getParticipantUuid())) {
+                p.rejoin();
+            }
+        });
+
+        chatRoomRepository.save(chatRoom);
     }
 
 }

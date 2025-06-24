@@ -1,15 +1,12 @@
 package back.vybz.chat_service.kafka.consumer;
 
 import back.vybz.chat_service.chat.application.ChatRoomService;
-import back.vybz.chat_service.chat.dto.response.ResponseChatMessageDto;
 import back.vybz.chat_service.chat.infrastructure.ChatMessageReactiveRepository;
-import back.vybz.chat_service.common.util.ChatSinkManager;
 import back.vybz.chat_service.kafka.event.ChatEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
-import reactor.core.publisher.Sinks;
 
 @Slf4j
 @Component
@@ -18,7 +15,6 @@ public class ChatEventConsumer {
 
     private final ChatMessageReactiveRepository chatMessageReactiveRepository;
     private final ChatRoomService chatRoomService;
-    private final ChatSinkManager chatSinkManager;
 
     @KafkaListener(
             topics = "chat-message",

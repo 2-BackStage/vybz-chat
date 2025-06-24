@@ -1,6 +1,5 @@
 package back.vybz.chat_service.chat.application;
 
-import back.vybz.chat_service.chat.domain.ChatMessage;
 import back.vybz.chat_service.chat.domain.MessageType;
 import back.vybz.chat_service.chat.dto.request.RequestLeaveChatRoomDto;
 import back.vybz.chat_service.chat.dto.request.RequestSendMessageDto;
@@ -31,11 +30,11 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     private final ChatSinkManager chatSinkManager;
     private final ChatMessageReactiveRepository chatMessageReactiveRepository;
     private final ChatKafkaProducer chatKafkaProducer;
+    private final ParticipantManager participantManager;
 
 
     /**
      * 메시지 전송 (Reactive 저장 + 마지막 메시지 갱신)
-     *
      * @param requestSendMessageDto
      */
     @Override
@@ -59,14 +58,13 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
     /**
      * 채팅방 ID로 메시지 스트림 구독
-     *
      * @param chatRoomId
      */
     @Override
     public Flux<ResponseChatMessageDto> subscribeChatMessageByChatRoomId(String chatRoomId, String participantUuid) {
         log.info("✅ sinkMap 진입: chatRoomId={}", chatRoomId);
         // 참가자 등록
-        registerParticipant(chatRoomId, participantUuid);
+        participantManager.registerParticipant(chatRoomId, participantUuid);
         // 메시지 수신용 Flux 생성(sink 기반)
         Flux<ResponseChatMessageDto> messageFlux = chatSinkManager.getOrCreateSink(chatRoomId).asFlux();
         // ping 전송용 Flux 생성
@@ -76,13 +74,12 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 .doOnSubscribe(sub -> log.info("👀 SSE 구독 시작: chatRoomId={}, participantUuid={}", chatRoomId, participantUuid))
                 .doFinally(signalType -> {
                     log.info("❌ SSE 종료 감지: {}, chatRoomId={}, participantUuid={}", signalType, chatRoomId, participantUuid);
-                    unregisterParticipant(chatRoomId, participantUuid);
+                    participantManager.unregisterParticipant(chatRoomId, participantUuid);
                 });
     }
 
     /**
      * 채팅방 ID로 이전 메시지 조회
-     *
      * @param chatRoomId
      */
     @Override
@@ -116,28 +113,6 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     @Override
     public void emitToSink(String chatRoomId, ResponseChatMessageDto responseChatMessageDto) {
         chatSinkManager.emitToSink(chatRoomId, responseChatMessageDto);
-    }
-
-    /**
-     * 채팅방 참여자 등록
-     * @param chatRoomId
-     * @param participantUuid
-     */
-    @Override
-    public void registerParticipant(String chatRoomId, String participantUuid) {
-        redisUtil.addParticipantToChatRoom(chatRoomId, participantUuid);
-        chatSinkManager.addParticipant(chatRoomId, participantUuid);
-    }
-
-    /**
-     * 채팅방 참여자 등록 해제
-     * @param chatRoomId
-     * @param participantUuid
-     */
-    @Override
-    public void unregisterParticipant(String chatRoomId, String participantUuid) {
-        redisUtil.removeParticipantFromChatRoom(chatRoomId, participantUuid);
-        chatSinkManager.removeParticipant(chatRoomId, participantUuid);
     }
 
     /**
@@ -188,18 +163,17 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     public Mono<List<ResponseChatMessageDto>> fetchMessagesConsideringLeaveWithCursor(String chatRoomId, String participantUuid, Instant sentAt, Integer pageSize) {
         return chatMessageReactiveRepository
                 .findFirstByChatRoomIdAndSenderUuidAndMessageTypeOrderBySentAtDesc(chatRoomId, participantUuid, MessageType.LEFT)
-                .flatMap(leftMessage ->
-                    chatMessageReactiveRepository
-                            .findByChatRoomIdWithCursorAndAfterLeft(chatRoomId, sentAt, pageSize)
+                .flatMap(leftMessage -> {
+                    Instant leftAt = leftMessage.getSentAt();
+                    return chatMessageReactiveRepository
+                            .findByChatRoomIdWithCursorAndAfterLeft(chatRoomId, leftAt, sentAt, pageSize)
                             .map(ResponseChatMessageDto::from)
-                            .collectList()
-                )
-                .switchIfEmpty(
-                    chatMessageReactiveRepository
-                            .findByChatRoomIdWithCursor(chatRoomId, sentAt, pageSize)
-                            .map(ResponseChatMessageDto::from)
-                            .collectList()
-                );
+                            .collectList();
+                })
+                .switchIfEmpty(chatMessageReactiveRepository
+                        .findByChatRoomIdWithCursor(chatRoomId, sentAt, pageSize)
+                        .map(ResponseChatMessageDto::from)
+                        .collectList());
     }
 
     /**

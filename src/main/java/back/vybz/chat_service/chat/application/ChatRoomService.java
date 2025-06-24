@@ -55,6 +55,6 @@ public interface ChatRoomService {
      * @param chatRoomId
      * @param participantUuid
      */
-    void rejoinIfHidden(String chatRoomId, String participantUuid);
+    void rejoinIfHidden(String chatRoomId, List<String> participantUuid);
 
 }

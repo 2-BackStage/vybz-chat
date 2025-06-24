@@ -3,7 +3,6 @@ package back.vybz.chat_service.chat.dto.response;
 import back.vybz.chat_service.chat.domain.ChatMessage;
 import back.vybz.chat_service.chat.domain.MessageType;
 import back.vybz.chat_service.chat.vo.response.ResponseChatMessageVo;
-import back.vybz.chat_service.kafka.event.ChatEvent;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -45,17 +44,6 @@ public class ResponseChatMessageDto {
                 .content(chatMessage.getContent())
                 .read(chatMessage.isRead())
                 .sentAt(chatMessage.getSentAt())
-                .build();
-    }
-
-    public static ResponseChatMessageDto fromEvent(ChatEvent chatEvent) {
-        return ResponseChatMessageDto.builder()
-                .chatRoomId(chatEvent.getChatRoomId())
-                .senderUuid(chatEvent.getSenderUuid())
-                .messageType(chatEvent.getMessageType())
-                .content(chatEvent.getContent())
-                .read(chatEvent.isRead())
-                .sentAt(chatEvent.getSentAt())
                 .build();
     }
 

@@ -1,5 +1,6 @@
 package back.vybz.chat_service.chat.application;
 
+import back.vybz.chat_service.chat.domain.ChatMessage;
 import back.vybz.chat_service.chat.domain.MessageType;
 import back.vybz.chat_service.chat.dto.request.RequestLeaveChatRoomDto;
 import back.vybz.chat_service.chat.dto.request.RequestSendMessageDto;
@@ -8,8 +9,6 @@ import back.vybz.chat_service.chat.infrastructure.ChatMessageReactiveRepository;
 import back.vybz.chat_service.common.util.ChatSinkManager;
 import back.vybz.chat_service.common.util.CursorPageUtil;
 import back.vybz.chat_service.common.util.RedisUtil;
-import back.vybz.chat_service.kafka.event.ChatEvent;
-import back.vybz.chat_service.kafka.producer.ChatKafkaProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,7 +28,6 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     private final ChatRoomService chatRoomService;
     private final ChatSinkManager chatSinkManager;
     private final ChatMessageReactiveRepository chatMessageReactiveRepository;
-    private final ChatKafkaProducer chatKafkaProducer;
     private final ParticipantManager participantManager;
 
 
@@ -40,9 +38,9 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     @Override
     public Mono<Void> sendMessage(RequestSendMessageDto requestSendMessageDto) {
         boolean receiverOnline = redisUtil.isParticipantOnline(requestSendMessageDto.getChatRoomId(), requestSendMessageDto.getReceiverUuid());
-        chatRoomService.rejoinIfHidden(requestSendMessageDto.getChatRoomId(), requestSendMessageDto.getReceiverUuid());
+        chatRoomService.rejoinIfHidden(requestSendMessageDto.getChatRoomId(), List.of(requestSendMessageDto.getSenderUuid(), requestSendMessageDto.getReceiverUuid()));
 
-        ChatEvent event = ChatEvent.builder()
+        ChatMessage message = ChatMessage.builder()
                 .chatRoomId(requestSendMessageDto.getChatRoomId())
                 .senderUuid(requestSendMessageDto.getSenderUuid())
                 .receiverUuid(requestSendMessageDto.getReceiverUuid())
@@ -52,8 +50,14 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 .sentAt(Instant.now())
                 .build();
 
-        chatKafkaProducer.sendChatMessage(event);
-        return Mono.empty();
+        return chatMessageReactiveRepository.save(message)
+                .doOnSuccess(saved -> {
+                    chatRoomService.updateLastMessage(saved.getChatRoomId(), saved);
+                    if (!saved.isRead()) {
+                        chatRoomService.increaseUnreadCount(saved.getChatRoomId(), saved.getSenderUuid());
+                    }
+                })
+                .then();
     }
 
     /**

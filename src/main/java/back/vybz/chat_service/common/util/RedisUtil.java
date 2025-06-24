@@ -5,8 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.concurrent.TimeUnit;
-
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -17,7 +15,7 @@ public class RedisUtil {
     private static final String CHAT_ROOM_PARTICIPANT_PREFIX = "chat:room:";
 
     /**
-     * 사용자 채팅방 입장 처리 (TTL로 구독 유지 상태를 저장)
+     * 사용자 채팅방 입장 처리
      */
     public void addParticipantToChatRoom(String chatRoomId, String participantUuid) {
         String key = getKey(chatRoomId);

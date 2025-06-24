@@ -11,6 +11,8 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Repository
 @RequiredArgsConstructor
@@ -39,10 +41,18 @@ public class ChatMessageReactiveRepositoryCustomImpl implements ChatMessageReact
      * @param pageSize
      */
     @Override
-    public Flux<ChatMessage> findByChatRoomIdWithCursorAndAfterLeft(String chatRoomId, Instant sentAt, Integer pageSize) {
+    public Flux<ChatMessage> findByChatRoomIdWithCursorAndAfterLeft(
+            String chatRoomId, Instant leftAt, Instant sentAt, Integer pageSize) {
         Criteria criteria = Criteria.where("chatRoomId").is(chatRoomId);
+        List<Criteria> timeCriteria = new ArrayList<>();
+        if (leftAt != null) {
+            timeCriteria.add(Criteria.where("sentAt").gt(leftAt));
+        }
         if (sentAt != null) {
-            criteria = new Criteria().andOperator(criteria, Criteria.where("sentAt").gt(sentAt));
+            timeCriteria.add(Criteria.where("sentAt").gt(sentAt));
+        }
+        if (!timeCriteria.isEmpty()) {
+            criteria = new Criteria().andOperator(criteria, new Criteria().andOperator(timeCriteria.toArray(new Criteria[0])));
         }
         Query query = new Query(criteria);
         Query finalQuery = MongoCursorHelper.build(query, "sentAt", sentAt, pageSize, Sort.Direction.DESC);

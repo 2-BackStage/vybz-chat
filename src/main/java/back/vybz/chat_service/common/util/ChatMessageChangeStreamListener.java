@@ -3,13 +3,10 @@ package back.vybz.chat_service.common.util;
 import back.vybz.chat_service.chat.application.ChatMessageService;
 import back.vybz.chat_service.chat.domain.ChatMessage;
 import back.vybz.chat_service.chat.dto.response.ResponseChatMessageDto;
-import com.mongodb.client.model.changestream.FullDocument;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.data.mongodb.core.ChangeStreamEvent;
-import org.springframework.data.mongodb.core.ChangeStreamOptions;
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
 import org.springframework.stereotype.Component;
 

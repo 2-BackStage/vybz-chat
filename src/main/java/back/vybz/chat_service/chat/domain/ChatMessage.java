@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
@@ -13,6 +15,19 @@ import java.time.Instant;
 @Getter
 @NoArgsConstructor
 @Document(collection = "chat_message")
+@CompoundIndexes({
+        // 채팅방 내 메시지 조회용 (커서 기반, 내림차순)
+        @CompoundIndex(name = "chatRoomId_sentAt_idx", def = "{'chat_room_id': 1, 'sent_at': -1}"),
+
+        // 읽지 않은 메시지 조회용
+        @CompoundIndex(name = "chatRoomId_receiverUuid_read_idx", def = "{'chat_room_id': 1, 'receiver_uuid': 1, 'read': 1}"),
+
+        // 사용자 퇴장 이후 메시지 조회용
+        @CompoundIndex(name = "chatRoomId_sentAt_cursor_idx", def = "{'chat_room_id': 1, 'sent_at': 1}"),
+
+        // LEFT 메시지 확인용 (가장 마지막 LEFT 메시지 조회)
+        @CompoundIndex(name = "chatRoomId_senderUuid_type_sentAt_idx", def = "{'chat_room_id': 1, 'sender_uuid': 1, 'message_type': 1, 'sent_at': -1}")
+})
 public class ChatMessage {
 
     @Id
@@ -63,12 +78,6 @@ public class ChatMessage {
 
     public void markAsRead() {
         this.read = true;
-    }
-
-    public void markReadIfReceiverOnline(boolean receiverOnline) {
-        if (receiverOnline) {
-            this.read = true;
-        }
     }
 
     @Builder

@@ -1,10 +1,8 @@
 package back.vybz.chat_service.chat.presentation;
 
 import back.vybz.chat_service.chat.application.ChatMessageService;
-import back.vybz.chat_service.chat.dto.request.RequestLeaveChatRoomDto;
 import back.vybz.chat_service.chat.dto.request.RequestSendMessageDto;
 import back.vybz.chat_service.chat.dto.response.ResponseChatMessageDto;
-import back.vybz.chat_service.chat.vo.request.RequestLeaveChatRoomVo;
 import back.vybz.chat_service.chat.vo.request.RequestSendMessageVo;
 import back.vybz.chat_service.chat.vo.response.ResponseChatMessageVo;
 import back.vybz.chat_service.common.entity.BaseResponseEntity;
@@ -19,7 +17,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor

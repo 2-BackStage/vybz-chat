@@ -189,4 +189,28 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         return chatMessageReactiveRepository.save(requestLeaveChatRoomDto.toDocument()).then();
     }
 
+    /**
+     * 시스템 메시지 전송
+     * @param chatRoomId
+     * @param content
+     */
+    @Override
+    public Mono<Void> sendSystemMessage(String chatRoomId, String content) {
+        ChatMessage systemMessage = ChatMessage.builder()
+                .chatRoomId(chatRoomId)
+                .senderUuid("system")
+                .receiverUuid(null)
+                .messageType(MessageType.SYSTEM)
+                .content(content)
+                .read(true)
+                .sentAt(Instant.now())
+                .build();
+
+        return chatMessageReactiveRepository.save(systemMessage)
+                .doOnSuccess(savedMsg -> {
+                    chatRoomService.updateLastMessage(chatRoomId, savedMsg);
+                })
+                .then();
+    }
+
 }

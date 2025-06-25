@@ -68,4 +68,11 @@ public interface ChatMessageService {
      */
     Mono<Void> leaveChatRoomMessage(RequestLeaveChatRoomDto requestLeaveChatRoomDto);
 
+    /**
+     * 시스템 메시지 전송
+     * @param chatRoomId
+     * @param content
+     */
+    Mono<Void> sendSystemMessage(String chatRoomId, String content);
+
 }

@@ -28,7 +28,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
      * @param requestCreateChatRoomDto
      */
     @Override
-    public void createChatRoom(RequestCreateChatRoomDto requestCreateChatRoomDto) {
+    public ChatRoom createChatRoom(RequestCreateChatRoomDto requestCreateChatRoomDto) {
         Optional<ChatRoom> existChatRoom = chatRoomRepository.findChatRoomByTwoParticipants(
                 requestCreateChatRoomDto.getReceiverUuid(), requestCreateChatRoomDto.getSenderUuid());
         if (existChatRoom.isPresent()) {
@@ -36,11 +36,11 @@ public class ChatRoomServiceImpl implements ChatRoomService {
             boolean allHidden = chatRoom.getParticipant().stream()
                     .allMatch(Participant::isHidden);
             if (!allHidden) {
-                return;
+                return chatRoom;
             }
         }
         ChatRoom chatRoom = requestCreateChatRoomDto.toDocument();
-        chatRoomRepository.save(chatRoom);
+        return chatRoomRepository.save(chatRoom);
     }
 
     /**

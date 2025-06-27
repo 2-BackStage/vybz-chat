@@ -1,4 +1,4 @@
-name: CI/CD Docker Deploy to EC2 comment-read-service
+name: CI/CD Docker Deploy to EC2 chat-service
 
 on:
   push:

@@ -9,6 +9,7 @@ import back.vybz.chat_service.chat.infrastructure.ChatMessageReactiveRepository;
 import back.vybz.chat_service.common.util.ChatSinkManager;
 import back.vybz.chat_service.common.util.CursorPageUtil;
 import back.vybz.chat_service.common.util.RedisUtil;
+import back.vybz.chat_service.kafka.producer.ChatKafkaProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,8 +28,9 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     private final RedisUtil redisUtil;
     private final ChatRoomService chatRoomService;
     private final ChatSinkManager chatSinkManager;
-    private final ChatMessageReactiveRepository chatMessageReactiveRepository;
     private final ParticipantManager participantManager;
+    private final ChatMessageReactiveRepository chatMessageReactiveRepository;
+    private final ChatKafkaProducer chatKafkaProducer;
 
 
     /**
@@ -50,14 +52,17 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 .sentAt(Instant.now())
                 .build();
 
+
         return chatMessageReactiveRepository.save(message)
                 .doOnSuccess(saved -> {
                     chatRoomService.updateLastMessage(saved.getChatRoomId(), saved);
                     if (!saved.isRead()) {
                         chatRoomService.increaseUnreadCount(saved.getChatRoomId(), saved.getSenderUuid());
                     }
+                    chatKafkaProducer.sendChatMessage(requestSendMessageDto.toChatEvent());
                 })
                 .then();
+
     }
 
     /**

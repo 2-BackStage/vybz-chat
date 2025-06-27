@@ -2,6 +2,7 @@ package back.vybz.chat_service.chat.presentation;
 
 import back.vybz.chat_service.chat.application.ChatMessageService;
 import back.vybz.chat_service.chat.application.ChatRoomService;
+import back.vybz.chat_service.chat.domain.ChatRoom;
 import back.vybz.chat_service.chat.dto.request.RequestCreateChatRoomDto;
 import back.vybz.chat_service.chat.dto.request.RequestLeaveChatRoomDto;
 import back.vybz.chat_service.chat.dto.response.ResponseChatRoomDto;
@@ -18,7 +19,6 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -35,7 +35,8 @@ public class ChatRoomController {
     @Operation(summary = "채팅방 생성/재참여 API" , description = "채팅방 생성/재참여 API 입니다.", tags = {"Chat-Room-Service"})
     @PostMapping
     public BaseResponseEntity<Void> createChatRoom(@RequestBody RequestCreateChatRoomVo requestCreateChatRoomVo) {
-        chatRoomService.createChatRoom(RequestCreateChatRoomDto.from(requestCreateChatRoomVo));
+        ChatRoom chatRoom = chatRoomService.createChatRoom(RequestCreateChatRoomDto.from(requestCreateChatRoomVo));
+        chatMessageService.sendSystemMessage(chatRoom.getId(), "Created ChatRoom").subscribe();
         return new BaseResponseEntity<>(BaseResponseStatus.SUCCESS);
     }
 

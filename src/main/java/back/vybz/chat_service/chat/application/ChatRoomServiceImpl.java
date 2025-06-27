@@ -28,7 +28,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
      * @param requestCreateChatRoomDto
      */
     @Override
-    public void createChatRoom(RequestCreateChatRoomDto requestCreateChatRoomDto) {
+    public ChatRoom createChatRoom(RequestCreateChatRoomDto requestCreateChatRoomDto) {
         Optional<ChatRoom> existChatRoom = chatRoomRepository.findChatRoomByTwoParticipants(
                 requestCreateChatRoomDto.getReceiverUuid(), requestCreateChatRoomDto.getSenderUuid());
         if (existChatRoom.isPresent()) {
@@ -36,11 +36,11 @@ public class ChatRoomServiceImpl implements ChatRoomService {
             boolean allHidden = chatRoom.getParticipant().stream()
                     .allMatch(Participant::isHidden);
             if (!allHidden) {
-                return;
+                return chatRoom;
             }
         }
         ChatRoom chatRoom = requestCreateChatRoomDto.toDocument();
-        chatRoomRepository.save(chatRoom);
+        return chatRoomRepository.save(chatRoom);
     }
 
     /**
@@ -129,14 +129,17 @@ public class ChatRoomServiceImpl implements ChatRoomService {
      * @param participantUuid
      */
     @Override
-    public void rejoinIfHidden(String chatRoomId, String participantUuid) {
-       ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
-               .orElseThrow(() -> new BaseException(BaseResponseStatus.NO_EXIST_CHAT_ROOM));
-       chatRoom.getParticipant().stream()
-                .filter(p -> p.getParticipantUuid().equals(participantUuid))
-                .findFirst()
-                .ifPresent(Participant::rejoin);
-         chatRoomRepository.save(chatRoom);
+    public void rejoinIfHidden(String chatRoomId, List<String> participantUuid) {
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new BaseException(BaseResponseStatus.NO_EXIST_CHAT_ROOM));
+
+        chatRoom.getParticipant().forEach(p -> {
+            if (participantUuid.contains(p.getParticipantUuid())) {
+                p.rejoin();
+            }
+        });
+
+        chatRoomRepository.save(chatRoom);
     }
 
 }

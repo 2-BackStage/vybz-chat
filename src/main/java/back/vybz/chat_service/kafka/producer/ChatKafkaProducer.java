@@ -1,6 +1,7 @@
 package back.vybz.chat_service.kafka.producer;
 
 import back.vybz.chat_service.kafka.event.ChatEvent;
+import back.vybz.chat_service.kafka.event.LiveChatEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -19,12 +20,11 @@ public class ChatKafkaProducer {
     private final String topicName = "chat-message";
 
     public void sendChatMessage(ChatEvent event) {
-        String key = event.getChatRoomId();
 
         log.info("📤 [Kafka] Sending LiveChatEvent to '{}': {}", topicName, event);
 
         CompletableFuture<SendResult<String, ChatEvent>> future =
-                kafkaTemplate.send(topicName, key, event);
+                kafkaTemplate.send(topicName, event);
 
         future.whenComplete((result, ex) -> {
             if (ex != null) {
@@ -36,5 +36,6 @@ public class ChatKafkaProducer {
             }
         });
     }
+
 
 }

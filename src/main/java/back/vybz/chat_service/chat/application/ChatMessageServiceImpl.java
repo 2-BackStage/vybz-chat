@@ -9,7 +9,6 @@ import back.vybz.chat_service.chat.infrastructure.ChatMessageReactiveRepository;
 import back.vybz.chat_service.common.util.ChatSinkManager;
 import back.vybz.chat_service.common.util.CursorPageUtil;
 import back.vybz.chat_service.common.util.RedisUtil;
-import back.vybz.chat_service.kafka.event.ChatEvent;
 import back.vybz.chat_service.kafka.producer.ChatKafkaProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,44 +28,59 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     private final RedisUtil redisUtil;
     private final ChatRoomService chatRoomService;
     private final ChatSinkManager chatSinkManager;
+    private final ParticipantManager participantManager;
     private final ChatMessageReactiveRepository chatMessageReactiveRepository;
     private final ChatKafkaProducer chatKafkaProducer;
 
 
     /**
      * 메시지 전송 (Reactive 저장 + 마지막 메시지 갱신)
-     *
      * @param requestSendMessageDto
      */
     @Override
     public Mono<Void> sendMessage(RequestSendMessageDto requestSendMessageDto) {
-        boolean receiverOnline = redisUtil.isParticipantOnline(requestSendMessageDto.getChatRoomId(), requestSendMessageDto.getReceiverUuid());
-        chatRoomService.rejoinIfHidden(requestSendMessageDto.getChatRoomId(), requestSendMessageDto.getReceiverUuid());
+        return redisUtil.isParticipantOnline(
+                        requestSendMessageDto.getChatRoomId(),
+                        requestSendMessageDto.getReceiverUuid()
+                )
+                .flatMap(receiverOnline -> {
+                    chatRoomService.rejoinIfHidden(
+                            requestSendMessageDto.getChatRoomId(),
+                            List.of(requestSendMessageDto.getSenderUuid(), requestSendMessageDto.getReceiverUuid())
+                    );
 
-        ChatEvent event = ChatEvent.builder()
-                .chatRoomId(requestSendMessageDto.getChatRoomId())
-                .senderUuid(requestSendMessageDto.getSenderUuid())
-                .receiverUuid(requestSendMessageDto.getReceiverUuid())
-                .content(requestSendMessageDto.getContent())
-                .messageType(requestSendMessageDto.getMessageType())
-                .read(receiverOnline)
-                .sentAt(Instant.now())
-                .build();
+                    ChatMessage message = ChatMessage.builder()
+                            .chatRoomId(requestSendMessageDto.getChatRoomId())
+                            .senderUuid(requestSendMessageDto.getSenderUuid())
+                            .receiverUuid(requestSendMessageDto.getReceiverUuid())
+                            .content(requestSendMessageDto.getContent())
+                            .messageType(requestSendMessageDto.getMessageType())
+                            .read(receiverOnline) // ✅ 정확한 reactive read 판단
+                            .sentAt(Instant.now())
+                            .build();
 
-        chatKafkaProducer.sendChatMessage(event);
-        return Mono.empty();
+                    return chatMessageReactiveRepository.save(message)
+                            .doOnSuccess(saved -> {
+                                chatRoomService.updateLastMessage(saved.getChatRoomId(), saved);
+                                if (!saved.isRead()) {
+                                    chatRoomService.increaseUnreadCount(saved.getChatRoomId(), saved.getSenderUuid());
+                                }
+                                chatKafkaProducer.sendChatMessage(requestSendMessageDto.toChatEvent()); // Kafka 사용 시
+                            });
+                })
+                .then();
+
     }
 
     /**
      * 채팅방 ID로 메시지 스트림 구독
-     *
      * @param chatRoomId
      */
     @Override
     public Flux<ResponseChatMessageDto> subscribeChatMessageByChatRoomId(String chatRoomId, String participantUuid) {
         log.info("✅ sinkMap 진입: chatRoomId={}", chatRoomId);
         // 참가자 등록
-        registerParticipant(chatRoomId, participantUuid);
+        participantManager.registerParticipant(chatRoomId, participantUuid);
         // 메시지 수신용 Flux 생성(sink 기반)
         Flux<ResponseChatMessageDto> messageFlux = chatSinkManager.getOrCreateSink(chatRoomId).asFlux();
         // ping 전송용 Flux 생성
@@ -76,13 +90,12 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 .doOnSubscribe(sub -> log.info("👀 SSE 구독 시작: chatRoomId={}, participantUuid={}", chatRoomId, participantUuid))
                 .doFinally(signalType -> {
                     log.info("❌ SSE 종료 감지: {}, chatRoomId={}, participantUuid={}", signalType, chatRoomId, participantUuid);
-                    unregisterParticipant(chatRoomId, participantUuid);
+                    participantManager.unregisterParticipant(chatRoomId, participantUuid);
                 });
     }
 
     /**
      * 채팅방 ID로 이전 메시지 조회
-     *
      * @param chatRoomId
      */
     @Override
@@ -116,28 +129,6 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     @Override
     public void emitToSink(String chatRoomId, ResponseChatMessageDto responseChatMessageDto) {
         chatSinkManager.emitToSink(chatRoomId, responseChatMessageDto);
-    }
-
-    /**
-     * 채팅방 참여자 등록
-     * @param chatRoomId
-     * @param participantUuid
-     */
-    @Override
-    public void registerParticipant(String chatRoomId, String participantUuid) {
-        redisUtil.addParticipantToChatRoom(chatRoomId, participantUuid);
-        chatSinkManager.addParticipant(chatRoomId, participantUuid);
-    }
-
-    /**
-     * 채팅방 참여자 등록 해제
-     * @param chatRoomId
-     * @param participantUuid
-     */
-    @Override
-    public void unregisterParticipant(String chatRoomId, String participantUuid) {
-        redisUtil.removeParticipantFromChatRoom(chatRoomId, participantUuid);
-        chatSinkManager.removeParticipant(chatRoomId, participantUuid);
     }
 
     /**
@@ -188,18 +179,17 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     public Mono<List<ResponseChatMessageDto>> fetchMessagesConsideringLeaveWithCursor(String chatRoomId, String participantUuid, Instant sentAt, Integer pageSize) {
         return chatMessageReactiveRepository
                 .findFirstByChatRoomIdAndSenderUuidAndMessageTypeOrderBySentAtDesc(chatRoomId, participantUuid, MessageType.LEFT)
-                .flatMap(leftMessage ->
-                    chatMessageReactiveRepository
-                            .findByChatRoomIdWithCursorAndAfterLeft(chatRoomId, sentAt, pageSize)
+                .flatMap(leftMessage -> {
+                    Instant leftAt = leftMessage.getSentAt();
+                    return chatMessageReactiveRepository
+                            .findByChatRoomIdWithCursorAndAfterLeft(chatRoomId, leftAt, sentAt, pageSize)
                             .map(ResponseChatMessageDto::from)
-                            .collectList()
-                )
-                .switchIfEmpty(
-                    chatMessageReactiveRepository
-                            .findByChatRoomIdWithCursor(chatRoomId, sentAt, pageSize)
-                            .map(ResponseChatMessageDto::from)
-                            .collectList()
-                );
+                            .collectList();
+                })
+                .switchIfEmpty(chatMessageReactiveRepository
+                        .findByChatRoomIdWithCursor(chatRoomId, sentAt, pageSize)
+                        .map(ResponseChatMessageDto::from)
+                        .collectList());
     }
 
     /**
@@ -209,6 +199,30 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     @Override
     public Mono<Void> leaveChatRoomMessage(RequestLeaveChatRoomDto requestLeaveChatRoomDto) {
         return chatMessageReactiveRepository.save(requestLeaveChatRoomDto.toDocument()).then();
+    }
+
+    /**
+     * 시스템 메시지 전송
+     * @param chatRoomId
+     * @param content
+     */
+    @Override
+    public Mono<Void> sendSystemMessage(String chatRoomId, String content) {
+        ChatMessage systemMessage = ChatMessage.builder()
+                .chatRoomId(chatRoomId)
+                .senderUuid("system")
+                .receiverUuid(null)
+                .messageType(MessageType.SYSTEM)
+                .content(content)
+                .read(true)
+                .sentAt(Instant.now())
+                .build();
+
+        return chatMessageReactiveRepository.save(systemMessage)
+                .doOnSuccess(savedMsg -> {
+                    chatRoomService.updateLastMessage(chatRoomId, savedMsg);
+                })
+                .then();
     }
 
 }

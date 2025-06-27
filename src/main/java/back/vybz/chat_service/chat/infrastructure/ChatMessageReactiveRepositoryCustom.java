@@ -18,9 +18,10 @@ public interface ChatMessageReactiveRepositoryCustom {
     /**
      * 채팅 내역 조회(커서 기반, 나갔다 들어온 경우)
      * @param chatRoomId
+     * @param leftAt
      * @param sentAt
      * @param pageSize
      */
-    Flux<ChatMessage> findByChatRoomIdWithCursorAndAfterLeft(String chatRoomId, Instant sentAt, Integer pageSize);
+    Flux<ChatMessage> findByChatRoomIdWithCursorAndAfterLeft(String chatRoomId, Instant leftAt, Instant sentAt, Integer pageSize);
 
 }

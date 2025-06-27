@@ -38,20 +38,6 @@ public interface ChatMessageService {
     void emitToSink(String chatRoomId, ResponseChatMessageDto responseChatMessageDto);
 
     /**
-     * 채팅방 참여자 등록
-     * @param chatRoomId
-     * @param participantUuid
-     */
-    void registerParticipant(String chatRoomId, String participantUuid);
-
-    /**
-     * 채팅방 참여자 등록 해제
-     * @param chatRoomId
-     * @param participantUuid
-     */
-    void unregisterParticipant(String chatRoomId, String participantUuid);
-
-    /**
      * 핑 메시지 발행
      * @param chatRoomId
      */
@@ -81,5 +67,12 @@ public interface ChatMessageService {
      * @param requestLeaveChatRoomDto
      */
     Mono<Void> leaveChatRoomMessage(RequestLeaveChatRoomDto requestLeaveChatRoomDto);
+
+    /**
+     * 시스템 메시지 전송
+     * @param chatRoomId
+     * @param content
+     */
+    Mono<Void> sendSystemMessage(String chatRoomId, String content);
 
 }

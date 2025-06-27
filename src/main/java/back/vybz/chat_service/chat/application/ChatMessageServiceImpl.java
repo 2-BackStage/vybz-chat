@@ -39,27 +39,34 @@ public class ChatMessageServiceImpl implements ChatMessageService {
      */
     @Override
     public Mono<Void> sendMessage(RequestSendMessageDto requestSendMessageDto) {
-        boolean receiverOnline = redisUtil.isParticipantOnline(requestSendMessageDto.getChatRoomId(), requestSendMessageDto.getReceiverUuid());
-        chatRoomService.rejoinIfHidden(requestSendMessageDto.getChatRoomId(), List.of(requestSendMessageDto.getSenderUuid(), requestSendMessageDto.getReceiverUuid()));
+        return redisUtil.isParticipantOnline(
+                        requestSendMessageDto.getChatRoomId(),
+                        requestSendMessageDto.getReceiverUuid()
+                )
+                .flatMap(receiverOnline -> {
+                    chatRoomService.rejoinIfHidden(
+                            requestSendMessageDto.getChatRoomId(),
+                            List.of(requestSendMessageDto.getSenderUuid(), requestSendMessageDto.getReceiverUuid())
+                    );
 
-        ChatMessage message = ChatMessage.builder()
-                .chatRoomId(requestSendMessageDto.getChatRoomId())
-                .senderUuid(requestSendMessageDto.getSenderUuid())
-                .receiverUuid(requestSendMessageDto.getReceiverUuid())
-                .content(requestSendMessageDto.getContent())
-                .messageType(requestSendMessageDto.getMessageType())
-                .read(receiverOnline)
-                .sentAt(Instant.now())
-                .build();
+                    ChatMessage message = ChatMessage.builder()
+                            .chatRoomId(requestSendMessageDto.getChatRoomId())
+                            .senderUuid(requestSendMessageDto.getSenderUuid())
+                            .receiverUuid(requestSendMessageDto.getReceiverUuid())
+                            .content(requestSendMessageDto.getContent())
+                            .messageType(requestSendMessageDto.getMessageType())
+                            .read(receiverOnline) // ✅ 정확한 reactive read 판단
+                            .sentAt(Instant.now())
+                            .build();
 
-
-        return chatMessageReactiveRepository.save(message)
-                .doOnSuccess(saved -> {
-                    chatRoomService.updateLastMessage(saved.getChatRoomId(), saved);
-                    if (!saved.isRead()) {
-                        chatRoomService.increaseUnreadCount(saved.getChatRoomId(), saved.getSenderUuid());
-                    }
-                    chatKafkaProducer.sendChatMessage(requestSendMessageDto.toChatEvent());
+                    return chatMessageReactiveRepository.save(message)
+                            .doOnSuccess(saved -> {
+                                chatRoomService.updateLastMessage(saved.getChatRoomId(), saved);
+                                if (!saved.isRead()) {
+                                    chatRoomService.increaseUnreadCount(saved.getChatRoomId(), saved.getSenderUuid());
+                                }
+                                chatKafkaProducer.sendChatMessage(requestSendMessageDto.toChatEvent()); // Kafka 사용 시
+                            });
                 })
                 .then();
 

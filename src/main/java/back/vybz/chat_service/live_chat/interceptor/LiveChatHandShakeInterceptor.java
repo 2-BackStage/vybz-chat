@@ -16,17 +16,22 @@ public class LiveChatHandShakeInterceptor implements HandshakeInterceptor {
 
     @Override
     public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Map<String, Object> attributes) throws Exception {
-        log.info("handshake request: {}", request.getURI());
+        log.info("handshake 요청: {}", request.getURI());
+
         String liveId = UriComponentsBuilder.fromUri(request.getURI())
                 .build()
                 .getQueryParams()
                 .getFirst("liveId");
+
+        log.info("존재 liveId: {}", liveId);
+
         if (liveId != null && !liveId.isBlank()) {
             attributes.put("liveId", liveId);
+            return true;
         } else {
+            log.warn("liveId is 없음, rejecting handshake");
             return false;
         }
-        return true;
     }
 
     @Override

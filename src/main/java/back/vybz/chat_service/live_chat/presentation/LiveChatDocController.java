@@ -14,7 +14,7 @@ public class LiveChatDocController {
             description = """
                ✅ WebSocket 기반 라이브 채팅은 다음 경로로 연결합니다:
 
-               - WebSocket 연결 주소: `ws://{도메인}/chat-service/ws/live-chat?liveId={라이브ID}`
+               - WebSocket 연결 주소: `wss://back.vybz.kr/ws/live-chat?liveId=${liveId}`
                - STOMP 메시지 전송: `/app/live-chat/sendMessage`
                - STOMP 구독 경로: `/topic/live-chat/{liveId}`
 

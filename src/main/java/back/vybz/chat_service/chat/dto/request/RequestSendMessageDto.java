@@ -55,7 +55,6 @@ public class RequestSendMessageDto {
                 .chatRoomId(chatRoomId)
                 .senderUuid(senderUuid)
                 .receiverUuid(receiverUuid)
-                .content(content)
                 .build();
     }
 

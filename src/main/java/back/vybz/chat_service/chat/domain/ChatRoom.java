@@ -18,7 +18,7 @@ import java.util.List;
 @Document(collection = "chat_room")
 @CompoundIndex(
         name = "participant_uuid_hidden_sentAt_idx",
-        def = "{'participant.participantUuid': 1, 'participant.hidden': 1, 'lastMessage.sentAt': -1}"
+        def = "{'participant.participantUuid': 1, 'participant.hidden': 1, 'last_message.sentAt': -1}"
 )
 public class ChatRoom {
 

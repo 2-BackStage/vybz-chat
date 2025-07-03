@@ -54,6 +54,7 @@ public enum BaseResponseStatus {
      * Request 유효성 에러
      */
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, false, 1000, "잘못된 요청입니다."),
+    INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, false, 1001, "잘못된 입력값입니다."),
 
     /**
      * 채팅 에러

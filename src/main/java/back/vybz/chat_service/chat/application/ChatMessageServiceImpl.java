@@ -48,28 +48,27 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                             requestSendMessageDto.getChatRoomId(),
                             List.of(requestSendMessageDto.getSenderUuid(), requestSendMessageDto.getReceiverUuid())
                     );
-
+                    
                     ChatMessage message = ChatMessage.builder()
                             .chatRoomId(requestSendMessageDto.getChatRoomId())
                             .senderUuid(requestSendMessageDto.getSenderUuid())
                             .receiverUuid(requestSendMessageDto.getReceiverUuid())
                             .content(requestSendMessageDto.getContent())
                             .messageType(requestSendMessageDto.getMessageType())
-                            .read(receiverOnline) // ✅ 정확한 reactive read 판단
+                            .read(receiverOnline)
                             .sentAt(Instant.now())
                             .build();
-
+                    
                     return chatMessageReactiveRepository.save(message)
                             .doOnSuccess(saved -> {
                                 chatRoomService.updateLastMessage(saved.getChatRoomId(), saved);
                                 if (!saved.isRead()) {
                                     chatRoomService.increaseUnreadCount(saved.getChatRoomId(), saved.getSenderUuid());
                                 }
-                                chatKafkaProducer.sendChatMessage(requestSendMessageDto.toChatEvent()); // Kafka 사용 시
+                                chatKafkaProducer.sendChatMessage(requestSendMessageDto.toChatEvent());
                             });
                 })
                 .then();
-
     }
 
     /**

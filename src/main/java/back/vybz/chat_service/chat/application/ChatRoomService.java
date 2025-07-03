@@ -25,6 +25,13 @@ public interface ChatRoomService {
     CursorPageUtil<ResponseChatRoomDto, Instant> getChatRoomByParticipantUuidWithCursor(String participantUuid, Instant sentAt, Integer pageSize);
 
     /**
+     * 특정 채팅방에 참여자 UUID가 활성화 상태인지 확인
+     * @param room
+     * @param participantUuid
+     */
+    boolean isParticipantActive(ChatRoom room, String participantUuid);
+
+    /**
      * 마지막 메시지 업데이트
      * @param chatRoomId
      * @param chatMessage

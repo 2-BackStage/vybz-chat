@@ -30,93 +30,75 @@ public class ChatRoomServiceImpl implements ChatRoomService {
      */
     @Override
     public ChatRoom createChatRoom(RequestCreateChatRoomDto requestCreateChatRoomDto) {
-        try {
-            // 입력값 검증
-            if (requestCreateChatRoomDto.getSenderUuid() == null || requestCreateChatRoomDto.getSenderUuid().trim().isEmpty()) {
-                throw new BaseException(BaseResponseStatus.INVALID_INPUT_VALUE);
-            }
-            if (requestCreateChatRoomDto.getReceiverUuid() == null || requestCreateChatRoomDto.getReceiverUuid().trim().isEmpty()) {
-                throw new BaseException(BaseResponseStatus.INVALID_INPUT_VALUE);
-            }
-            if (requestCreateChatRoomDto.getSenderUuid().equals(requestCreateChatRoomDto.getReceiverUuid())) {
-                throw new BaseException(BaseResponseStatus.INVALID_INPUT_VALUE);
-            }
+        log.info("🚀 채팅방 생성 시작: senderUuid={}, receiverUuid={}", 
+                requestCreateChatRoomDto.getSenderUuid(), requestCreateChatRoomDto.getReceiverUuid());
+        
+        // 단일 쿼리로 모든 채팅방 조회 후 Java에서 처리 (성능 최적화)
+        List<ChatRoom> allChatRooms = chatRoomRepository.findAllChatRoomByTwoParticipants(
+                requestCreateChatRoomDto.getReceiverUuid(),
+                requestCreateChatRoomDto.getSenderUuid()
+        );
 
-            // 모든 채팅방을 먼저 가져와서 Java에서 필터링
-            List<ChatRoom> allChatRooms = chatRoomRepository.findAllChatRoomByTwoParticipants(
-                    requestCreateChatRoomDto.getReceiverUuid(),
-                    requestCreateChatRoomDto.getSenderUuid()
-            );
+        log.info("🔍 기존 채팅방 검색 결과: {}개", allChatRooms.size());
 
-            log.info("🔍 모든 채팅방 검색 결과: {}개", allChatRooms.size());
-            for (ChatRoom room : allChatRooms) {
-                log.info("  - 채팅방 ID: {}, 참여자 상태: {}", 
-                    room.getId(), 
-                    room.getParticipant().stream()
-                        .map(p -> p.getParticipantUuid() + ":" + (p.isHidden() ? "hidden" : "active"))
-                        .toList()
-                );
-            }
-
-            // 활성화된 채팅방 찾기 (두 사용자가 모두 hidden=false인 방)
-            List<ChatRoom> activeChatRooms = allChatRooms.stream()
-                    .filter(room -> {
-                        boolean senderActive = room.getParticipant().stream()
-                                .anyMatch(p -> p.getParticipantUuid().equals(requestCreateChatRoomDto.getSenderUuid()) && !p.isHidden());
-                        boolean receiverActive = room.getParticipant().stream()
-                                .anyMatch(p -> p.getParticipantUuid().equals(requestCreateChatRoomDto.getReceiverUuid()) && !p.isHidden());
-                        return senderActive && receiverActive;
-                    })
-                    .toList();
-
-            log.info("🔍 활성화된 채팅방 필터링 결과: {}개", activeChatRooms.size());
-
-            // 활성화된 채팅방이 있으면 반환
-            if (!activeChatRooms.isEmpty()) {
-                log.info("✅ 기존 활성화된 채팅방 발견: {}", activeChatRooms.get(0).getId());
-                return activeChatRooms.get(0);
-            }
-
-            // 기존 채팅방들 중에서 재활성화할 수 있는 방 찾기
-            for (ChatRoom chatRoom : allChatRooms) {
-                boolean allHidden = chatRoom.getParticipant().stream()
-                        .allMatch(Participant::isHidden);
-
-                if (allHidden) {
-                    // 모든 참여자가 hidden 상태인 경우 → 새로운 채팅방 생성
-                    log.info("🔍 모든 참여자가 hidden 상태인 채팅방 발견: {}", chatRoom.getId());
-                    continue;
-                } else {
-                    // 일부 참여자가 활성 상태인 경우 → 이 채팅방을 재활성화
-                    log.info("🔄 일부 참여자가 활성 상태인 채팅방 발견: {}", chatRoom.getId());
-                    
-                    // 현재 요청한 사용자들을 재활성화
-                    chatRoom.getParticipant().forEach(p -> {
-                        if (p.getParticipantUuid().equals(requestCreateChatRoomDto.getSenderUuid()) ||
-                            p.getParticipantUuid().equals(requestCreateChatRoomDto.getReceiverUuid())) {
-                            p.rejoin();
-                        }
-                    });
-                    
-                    ChatRoom saved = chatRoomRepository.save(chatRoom);
-                    log.info("🔄 기존 채팅방 재활성화 완료: {}", saved.getId());
-                    return saved;
-                }
-            }
-
-            // 모든 방이 hidden 상태이거나 존재하지 않는 경우 → 새로 생성
+        // 기존 채팅방이 없는 경우 → 새로운 채팅방 생성
+        if (allChatRooms.isEmpty()) {
+            log.info("📌 기존 채팅방 없음 → 새로운 채팅방 생성");
             ChatRoom chatRoom = requestCreateChatRoomDto.toDocument();
-            log.info("📌 새 채팅방 생성 시작: senderUuid={}, receiverUuid={}", 
-                    requestCreateChatRoomDto.getSenderUuid(), requestCreateChatRoomDto.getReceiverUuid());
             ChatRoom saved = chatRoomRepository.save(chatRoom);
             log.info("✅ 새 채팅방 생성 완료: {}", saved.getId());
             return saved;
-        } catch (BaseException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("❌ 채팅방 생성 중 오류 발생: {}", e.getMessage(), e);
-            throw new BaseException(BaseResponseStatus.INTERNAL_SERVER_ERROR);
         }
+
+        // Java에서 채팅방 상태 분석 및 처리
+        ChatRoom activeChatRoom = null;
+        ChatRoom reactivableChatRoom = null;
+
+        for (ChatRoom chatRoom : allChatRooms) {
+            boolean senderActive = chatRoom.getParticipant().stream()
+                    .anyMatch(p -> p.getParticipantUuid().equals(requestCreateChatRoomDto.getSenderUuid()) && !p.isHidden());
+            boolean receiverActive = chatRoom.getParticipant().stream()
+                    .anyMatch(p -> p.getParticipantUuid().equals(requestCreateChatRoomDto.getReceiverUuid()) && !p.isHidden());
+
+            // 둘 다 활성 상태인 경우
+            if (senderActive && receiverActive) {
+                activeChatRoom = chatRoom;
+                break; // 최적의 경우 발견, 즉시 종료
+            }
+            // 둘 중 하나라도 활성 상태인 경우 (재활성화 가능)
+            else if (senderActive || receiverActive) {
+                reactivableChatRoom = chatRoom;
+            }
+        }
+
+        // 활성화된 채팅방이 있으면 반환
+        if (activeChatRoom != null) {
+            log.info("✅ 기존 활성화된 채팅방 발견: {}", activeChatRoom.getId());
+            return activeChatRoom;
+        }
+
+        // 재활성화 가능한 채팅방이 있으면 재활성화
+        if (reactivableChatRoom != null) {
+            log.info("🔄 기존 채팅방 재활성화: {}", reactivableChatRoom.getId());
+            
+            reactivableChatRoom.getParticipant().forEach(p -> {
+                if (p.getParticipantUuid().equals(requestCreateChatRoomDto.getSenderUuid()) ||
+                    p.getParticipantUuid().equals(requestCreateChatRoomDto.getReceiverUuid())) {
+                    p.rejoin();
+                }
+            });
+            
+            ChatRoom saved = chatRoomRepository.save(reactivableChatRoom);
+            log.info("✅ 채팅방 재활성화 완료: {}", saved.getId());
+            return saved;
+        }
+
+        // 모든 기존 채팅방이 hidden 상태인 경우 → 새로운 채팅방 생성
+        log.info("📌 모든 기존 채팅방이 hidden 상태 → 새로운 채팅방 생성");
+        ChatRoom chatRoom = requestCreateChatRoomDto.toDocument();
+        ChatRoom saved = chatRoomRepository.save(chatRoom);
+        log.info("✅ 새 채팅방 생성 완료: {}", saved.getId());
+        return saved;
     }
 
     /**

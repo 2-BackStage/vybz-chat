@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class ChatSinkManager {
 
-    private static final int SINK_BUFFER_SIZE = 1000;
+    private static final int SINK_BUFFER_SIZE = 5000;
 
     private final Map<String, Sinks.Many<ResponseChatMessageDto>> sinkMap = new ConcurrentHashMap<>();
     private final Map<String, Set<String>> roomParticipants = new ConcurrentHashMap<>();
@@ -57,15 +57,24 @@ public class ChatSinkManager {
      * Sink로 메시지 emit 처리
      */
     public void emitToSink(String chatRoomId, ResponseChatMessageDto message) {
+        emitToSinkWithRetry(chatRoomId, message, 0);
+    }
+
+    private void emitToSinkWithRetry(String chatRoomId, ResponseChatMessageDto message, int retryCount) {
         Sinks.Many<ResponseChatMessageDto> sink = sinkMap.get(chatRoomId);
         if (sink == null) {
             log.warn("🚫 Sink 없음: chatRoomId={}", chatRoomId);
             return;
         }
-
         Sinks.EmitResult result = sink.tryEmitNext(message);
         if (result.isFailure()) {
-            log.warn("❌ 메시지 emit 실패: chatRoomId={}, reason={}, message={}", chatRoomId, result.name(), message);
+            log.warn("❌ 메시지 emit 실패: chatRoomId={}, reason={}, message={}, retry={}", chatRoomId, result.name(), message, retryCount);
+            if (retryCount < 3) {
+                try {
+                    Thread.sleep(10 * (retryCount + 1)); // 간단한 backoff
+                } catch (InterruptedException ignored) {}
+                emitToSinkWithRetry(chatRoomId, message, retryCount + 1);
+            }
         } else {
             log.debug("📤 메시지 emit 성공: chatRoomId={}, content={}", chatRoomId, message.getContent());
         }

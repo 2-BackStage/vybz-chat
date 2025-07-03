@@ -7,6 +7,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -47,6 +49,9 @@ public class RedisUtil {
         String key = getKey(chatRoomId);
         return reactiveRedisTemplate.opsForSet()
                 .isMember(key, participantUuid)
+                .timeout(Duration.ofSeconds(2))  // ✅ 타임아웃 추가
+                .doOnError(e -> log.error("⏱️ Redis timeout or error occurred: {}", e.toString())) // optional logging
+                .onErrorResume(e -> Mono.just(false))  // ✅ fallback 처리
                 .doOnNext(isMember -> log.info("🔍 Redis 참가자 조회 결과 → key={}, participantUuid={}, isMember(raw)={}", key, participantUuid, isMember))
                 .defaultIfEmpty(false);
     }

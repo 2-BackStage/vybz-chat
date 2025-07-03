@@ -30,8 +30,6 @@ public class ChatMessageChangeStreamListener {
         reactiveMongoTemplate.changeStream(ChatMessage.class)
                 .watchCollection(ChatMessage.class)
                 .listen()
-                .doOnSubscribe(sub -> log.info("👂 ChangeStream 구독 시작됨"))
-                .doOnEach(signal -> log.debug("🚨 ChangeStream Signal 발생: {}", signal))
                 // insert 또는 update 이벤트인지 필터링
                 .filter(chatMessageChangeFilter::isRelevantOperation)
                 // insert는 무조건, update는 read=true일 때만 emit 허용
@@ -42,9 +40,7 @@ public class ChatMessageChangeStreamListener {
                 // 메시지를 클라이언트로 보낼 DTO로 변환
                 .map(ResponseChatMessageDto::from)
                 // Sink에 emit하여 SSE 구독자에게 전송
-                .doOnNext(dto -> {
-                    log.info("📥 [ChangeStream] emitToSink to sink: chatRoomId={}, read={}", dto.getChatRoomId(), dto.isRead());
-                    chatMessageService.emitToSink(dto.getChatRoomId(), dto);
+                .doOnNext(dto -> {chatMessageService.emitToSink(dto.getChatRoomId(), dto);
                 })
                 .doOnError(error -> log.error("❌ ChangeStream 처리 중 에러 발생", error))
                 .subscribe();

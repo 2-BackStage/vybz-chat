@@ -28,6 +28,7 @@ public class RequestCreateChatRoomDto {
         return RequestCreateChatRoomDto.builder()
                 .senderUuid(requestCreateChatRoomVo.getSenderUuid())
                 .receiverUuid(requestCreateChatRoomVo.getReceiverUuid())
+                .hidden(false) // 기본값으로 false 설정
                 .build();
     }
 

@@ -6,7 +6,7 @@ import back.vybz.chat_service.chat.dto.request.RequestLeaveChatRoomDto;
 import back.vybz.chat_service.chat.dto.request.RequestSendMessageDto;
 import back.vybz.chat_service.chat.dto.response.ResponseChatMessageDto;
 import back.vybz.chat_service.chat.infrastructure.ChatMessageReactiveRepository;
-import back.vybz.chat_service.common.util.ChatSinkManager;
+import back.vybz.chat_service.common.util.ChatMessageChangeStreamListener;
 import back.vybz.chat_service.common.util.CursorPageUtil;
 import back.vybz.chat_service.common.util.RedisUtil;
 import back.vybz.chat_service.kafka.producer.ChatKafkaProducer;
@@ -27,8 +27,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
     private final RedisUtil redisUtil;
     private final ChatRoomService chatRoomService;
-    private final ChatSinkManager chatSinkManager;
-    private final ParticipantManager participantManager;
+    private final ChatMessageChangeStreamListener chatMessageChangeStreamListener;
     private final ChatMessageReactiveRepository chatMessageReactiveRepository;
     private final ChatKafkaProducer chatKafkaProducer;
 
@@ -72,25 +71,29 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     }
 
     /**
-     * 채팅방 ID로 메시지 스트림 구독
+     * 채팅방 ID로 메시지 스트림 구독 (Change Stream + Sink 혼용)
      * @param chatRoomId
      */
     @Override
     public Flux<ResponseChatMessageDto> subscribeChatMessageByChatRoomId(String chatRoomId, String participantUuid) {
-        log.info("✅ sinkMap 진입: chatRoomId={}", chatRoomId);
-        // 참가자 등록
-        participantManager.registerParticipant(chatRoomId, participantUuid);
-        // 메시지 수신용 Flux 생성(sink 기반)
-        Flux<ResponseChatMessageDto> messageFlux = chatSinkManager.getOrCreateSink(chatRoomId).asFlux();
-        // ping 전송용 Flux 생성
-        Flux<ResponseChatMessageDto> pingFlux = makePingFlux(chatRoomId);
-        // SSE 스트림 반환
-        return Flux.merge(messageFlux, pingFlux)
-                .doOnSubscribe(sub -> log.info("👀 SSE 구독 시작: chatRoomId={}, participantUuid={}", chatRoomId, participantUuid))
-                .doFinally(signalType -> {
-                    log.info("❌ SSE 종료 감지: {}, chatRoomId={}, participantUuid={}", signalType, chatRoomId, participantUuid);
-                    participantManager.unregisterParticipant(chatRoomId, participantUuid);
-                });
+        chatMessageChangeStreamListener.addParticipant(chatRoomId, participantUuid);
+
+        // 1. Change Stream 기반 실시간 메시지 Flux
+        Flux<ResponseChatMessageDto> messageFlux = chatMessageChangeStreamListener.subscribeToChatRoom(chatRoomId);
+
+        // 2. Sink 기반 메시지 Flux (읽음 처리된 메시지용)
+        Flux<ResponseChatMessageDto> sinkFlux = chatMessageChangeStreamListener.getOrCreateRoomSink(chatRoomId).asFlux();
+
+        // 3. 5초마다 ping 전송 (연결 상태 확인용)
+        Flux<ResponseChatMessageDto> pingFlux = Flux.interval(Duration.ofSeconds(5))
+            .map(tick -> ResponseChatMessageDto.ping(chatRoomId));
+
+        // 4. 합쳐서 반환
+        return Flux.merge(messageFlux, sinkFlux, pingFlux)
+            .doFinally(signalType -> {
+                log.info("❌ SSE 종료 감지: {}, chatRoomId={}, participantUuid={}", signalType, chatRoomId, participantUuid);
+                chatMessageChangeStreamListener.removeParticipant(chatRoomId, participantUuid);
+            });
     }
 
     /**
@@ -99,46 +102,38 @@ public class ChatMessageServiceImpl implements ChatMessageService {
      */
     @Override
     public Mono<CursorPageUtil<ResponseChatMessageDto, Instant>> getPreviousChatMessageByChatRoomId(String chatRoomId, String participantUuid, Instant sentAt, Integer pageSize) {
-        // 읽지 않은 메시지 읽음으로 표시, 실시간 emit
-        return markUnreadMessagesAsRead(chatRoomId, participantUuid)
-                // 읽지 않은 메시지 수 초기화
-                .then(resetUnreadCount(chatRoomId, participantUuid))
-                // 채팅방의 모든 메시지 조회
-                .then(fetchMessagesConsideringLeaveWithCursor(chatRoomId, participantUuid, sentAt, pageSize))
-                .map(messages -> {
-                    boolean hasNext = messages.size() > pageSize;
-                    if (hasNext) {
-                        messages = messages.subList(0, pageSize);
-                    }
-                    Instant nextCursor = hasNext ? messages.get(messages.size() - 1).getSentAt() : null;
-                    return CursorPageUtil.<ResponseChatMessageDto, Instant>builder()
-                            .content(messages)
-                            .nextCursor(nextCursor)
-                            .hasNext(hasNext)
-                            .pageSize(pageSize)
-                            .build();
-                });
+        // 읽지 않은 메시지 읽음으로 표시하고 읽음 처리된 메시지들 수집
+        return chatMessageReactiveRepository.findUnreadMessagesByChatRoomIdAndNotSender(chatRoomId, participantUuid)
+            .flatMap(message -> {
+                message.markAsRead();
+                return chatMessageReactiveRepository.save(message)
+                    .map(ResponseChatMessageDto::from);
+            })
+            .collectList()
+            .flatMap(readMessages -> {
+                // 읽음 처리된 메시지들을 즉시 프론트로 전송
+                chatMessageChangeStreamListener.emitReadMessages(chatRoomId, readMessages);
+                
+                // 이후 기존 메시지 조회
+                return resetUnreadCount(chatRoomId, participantUuid)
+                    .then(fetchMessagesConsideringLeaveWithCursor(chatRoomId, participantUuid, sentAt, pageSize))
+                    .map(messages -> {
+                        boolean hasNext = messages.size() > pageSize;
+                        if (hasNext) {
+                            messages = messages.subList(0, pageSize);
+                        }
+                        Instant nextCursor = hasNext ? messages.get(messages.size() - 1).getSentAt() : null;
+                        return CursorPageUtil.<ResponseChatMessageDto, Instant>builder()
+                                .content(messages)
+                                .nextCursor(nextCursor)
+                                .hasNext(hasNext)
+                                .pageSize(pageSize)
+                                .build();
+                    });
+            });
     }
 
-    /**
-     * 싱크로 메시지 발행
-     * @param chatRoomId
-     * @param responseChatMessageDto
-     */
-    @Override
-    public void emitToSink(String chatRoomId, ResponseChatMessageDto responseChatMessageDto) {
-        chatSinkManager.emitToSink(chatRoomId, responseChatMessageDto);
-    }
 
-    /**
-     * 핑 메시지 발행
-     * @param chatRoomId
-     */
-    @Override
-    public Flux<ResponseChatMessageDto> makePingFlux(String chatRoomId) {
-        return Flux.interval(Duration.ofSeconds(5))
-                .map(tick -> ResponseChatMessageDto.ping(chatRoomId));
-    }
 
     /**
      * 읽지 않은 메시지를 읽음으로 표시
@@ -150,10 +145,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         return chatMessageReactiveRepository.findUnreadMessagesByChatRoomIdAndNotSender(chatRoomId, participantUuid)
                 .flatMap(message -> {
                     message.markAsRead();
-                    return chatMessageReactiveRepository.save(message)
-                            .doOnSuccess(updated -> {
-                                emitToSink(chatRoomId, ResponseChatMessageDto.from(updated));
-                            });
+                    return chatMessageReactiveRepository.save(message);
                 }).then();
     }
 

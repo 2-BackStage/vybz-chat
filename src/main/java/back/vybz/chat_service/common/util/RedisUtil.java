@@ -24,8 +24,14 @@ public class RedisUtil {
      */
     public void addParticipantToChatRoom(String chatRoomId, String participantUuid) {
         String key = getKey(chatRoomId);
-        stringRedisTemplate.opsForSet().add(key, participantUuid);
-        log.info("👤 Redis 참가자 추가됨: chatRoomId={}, participantUuid={}", chatRoomId, participantUuid);
+        try {
+            Long addedCount = stringRedisTemplate.opsForSet().add(key, participantUuid);
+            log.info("👤 Redis 참가자 추가됨: chatRoomId={}, participantUuid={}, addedCount={}, key={}", 
+                chatRoomId, participantUuid, addedCount, key);
+        } catch (Exception e) {
+            log.error("❌ Redis 참가자 추가 실패: chatRoomId={}, participantUuid={}, error={}", 
+                chatRoomId, participantUuid, e.getMessage(), e);
+        }
     }
 
     /**
@@ -33,8 +39,23 @@ public class RedisUtil {
      */
     public void removeParticipantFromChatRoom(String chatRoomId, String participantUuid) {
         String key = getKey(chatRoomId);
-        stringRedisTemplate.opsForSet().remove(key, participantUuid);
-        log.info("👋 Redis 참가자 제거됨: chatRoomId={}, participantUuid={}", chatRoomId, participantUuid);
+        try {
+            Long removedCount = stringRedisTemplate.opsForSet().remove(key, participantUuid);
+            log.info("👋 Redis 참가자 제거됨: chatRoomId={}, participantUuid={}, removedCount={}, key={}", 
+                chatRoomId, participantUuid, removedCount, key);
+            
+            Long remainingMembers = stringRedisTemplate.opsForSet().size(key);
+            log.info("📊 Redis 남은 참가자 수: chatRoomId={}, remainingMembers={}", chatRoomId, remainingMembers);
+
+            // 남은 멤버가 없으면 키 자체를 삭제
+            if (remainingMembers != null && remainingMembers == 0) {
+                Boolean keyDeleted = stringRedisTemplate.delete(key);
+                log.info("🗑️ Redis 키 삭제: chatRoomId={}, key={}, deleted={}", chatRoomId, key, keyDeleted);
+            }
+        } catch (Exception e) {
+            log.error("❌ Redis 참가자 제거 실패: chatRoomId={}, participantUuid={}, error={}", 
+                chatRoomId, participantUuid, e.getMessage(), e);
+        }
     }
 
     /**
@@ -49,10 +70,8 @@ public class RedisUtil {
         String key = getKey(chatRoomId);
         return reactiveRedisTemplate.opsForSet()
                 .isMember(key, participantUuid)
-                .timeout(Duration.ofSeconds(2))  // ✅ 타임아웃 추가
-                .doOnError(e -> log.error("⏱️ Redis timeout or error occurred: {}", e.toString())) // optional logging
-                .onErrorResume(e -> Mono.just(false))  // ✅ fallback 처리
-                .doOnNext(isMember -> log.info("🔍 Redis 참가자 조회 결과 → key={}, participantUuid={}, isMember(raw)={}", key, participantUuid, isMember))
+                .timeout(Duration.ofSeconds(2))
+                .onErrorResume(e -> Mono.just(false))
                 .defaultIfEmpty(false);
     }
 

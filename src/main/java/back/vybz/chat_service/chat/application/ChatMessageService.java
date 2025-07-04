@@ -31,19 +31,6 @@ public interface ChatMessageService {
     Mono<CursorPageUtil<ResponseChatMessageDto, Instant>> getPreviousChatMessageByChatRoomId(String chatRoomId, String participantUuid, Instant sentAt, Integer pageSize);
 
     /**
-     * 싱크로 메시지 발행
-     * @param chatRoomId
-     * @param responseChatMessageDto
-     */
-    void emitToSink(String chatRoomId, ResponseChatMessageDto responseChatMessageDto);
-
-    /**
-     * 핑 메시지 발행
-     * @param chatRoomId
-     */
-    Flux<ResponseChatMessageDto> makePingFlux(String chatRoomId);
-
-    /**
      * 읽지 않은 메시지를 읽음으로 표시, 실시간 emit
      * @param chatRoomId
      * @param participantUuid

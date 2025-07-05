@@ -1,7 +1,6 @@
 package back.vybz.chat_service.kafka.producer;
 
 import back.vybz.chat_service.kafka.event.ChatEvent;
-import back.vybz.chat_service.kafka.event.LiveChatEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;

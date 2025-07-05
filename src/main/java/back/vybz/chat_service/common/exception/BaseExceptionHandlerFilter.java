@@ -3,46 +3,53 @@ package back.vybz.chat_service.common.exception;
 import back.vybz.chat_service.common.entity.BaseResponseEntity;
 import back.vybz.chat_service.common.entity.BaseResponseStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
+import reactor.core.publisher.Mono;
 
 import javax.security.sasl.AuthenticationException;
-import java.io.IOException;
 
 @Slf4j
 @Component
-public class BaseExceptionHandlerFilter extends OncePerRequestFilter {
+@Order(-1)
+public class BaseExceptionHandlerFilter implements WebFilter {
+    
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        try {
-            filterChain.doFilter(request, response);
-        } catch (BaseException e) {
-            log.error("BaseException -> {}({})", e.getStatus(), e.getStatus().getMessage(), e);
-            setErrorResponse(response, e);
-        } catch (AuthenticationException e) {
-            log.error("AuthenticationException -> {}", e.getMessage(), e);
-            setErrorResponse(response, new BaseException(BaseResponseStatus.NO_SIGN_IN));
-        }
+    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        return chain.filter(exchange)
+                .onErrorResume(BaseException.class, e -> {
+                    log.error("BaseException -> {}({})", e.getStatus(), e.getStatus().getMessage(), e);
+                    return handleBaseException(exchange, e);
+                })
+                .onErrorResume(AuthenticationException.class, e -> {
+                    log.error("AuthenticationException -> {}", e.getMessage(), e);
+                    return handleBaseException(exchange, new BaseException(BaseResponseStatus.NO_SIGN_IN));
+                });
     }
 
-
-    private void setErrorResponse(HttpServletResponse response,
-                                  BaseException be) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding("UTF-8");
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    private Mono<Void> handleBaseException(ServerWebExchange exchange, BaseException be) {
         BaseResponseEntity baseResponse = new BaseResponseEntity(be.getStatus());
+        
+        exchange.getResponse().setStatusCode(org.springframework.http.HttpStatus.UNAUTHORIZED);
+        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        
         try {
-            response.getWriter().write(objectMapper.writeValueAsString(baseResponse));
-        } catch (IOException e) {
-            e.printStackTrace();
+            String responseBody = objectMapper.writeValueAsString(baseResponse);
+            return exchange.getResponse().writeWith(
+                    Mono.just(exchange.getResponse().bufferFactory().wrap(
+                            responseBody.getBytes()
+                    ))
+            );
+        } catch (Exception e) {
+            log.error("Error writing response", e);
+            return Mono.error(e);
         }
     }
 }

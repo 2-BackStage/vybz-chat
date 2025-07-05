@@ -3,47 +3,55 @@ package back.vybz.chat_service.common.exception;
 import back.vybz.chat_service.common.entity.BaseResponseEntity;
 import back.vybz.chat_service.common.entity.BaseResponseStatus;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.bind.support.WebExchangeBindException;
+import org.springframework.web.reactive.resource.NoResourceFoundException;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebExceptionHandler;
+import reactor.core.publisher.Mono;
 
-@RestControllerAdvice
 @Slf4j
-public class BaseExceptionHandler {
+@Component
+@Order(-2)
+public class BaseExceptionHandler implements WebExceptionHandler {
 
-    /**
-     * 발생한 예외 처리
-     */
+    @Override
+    public Mono<Void> handle(ServerWebExchange exchange, Throwable ex) {
+        if (ex instanceof BaseException) {
+            return handleBaseException(exchange, (BaseException) ex);
+        } else if (ex instanceof WebExchangeBindException) {
+            return handleValidationException(exchange, (WebExchangeBindException) ex);
+        } else if (ex instanceof NoResourceFoundException) {
+            return handleNoResourceFoundException(exchange, (NoResourceFoundException) ex);
+        } else if (ex instanceof RuntimeException) {
+            return handleRuntimeException(exchange, (RuntimeException) ex);
+        }
+        
+        return Mono.error(ex);
+    }
 
-    @ExceptionHandler(BaseException.class)
-    protected ResponseEntity<BaseResponseEntity<Void>> BaseError(BaseException e) {
+    private Mono<Void> handleBaseException(ServerWebExchange exchange, BaseException e) {
         BaseResponseEntity<Void> response = new BaseResponseEntity<>(e.getStatus());
         log.error("BaseException -> {}({})", e.getStatus(), e.getStatus().getMessage(), e);
-        return new ResponseEntity<>(response, response.httpStatus());
+        
+        exchange.getResponse().setStatusCode(HttpStatus.valueOf(response.httpStatus().value()));
+        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        
+        return exchange.getResponse().writeWith(
+                Mono.just(exchange.getResponse().bufferFactory().wrap(
+                        response.toString().getBytes()
+                ))
+        );
     }
 
-    @ExceptionHandler(RuntimeException.class)
-    protected ResponseEntity<BaseResponseEntity<Void>> RuntimeError(RuntimeException e) {
-        BaseResponseEntity<Void> response = new BaseResponseEntity<>(BaseResponseStatus.INTERNAL_SERVER_ERROR, e.getMessage());
-        log.error("RuntimeException: ", e);
-        for (StackTraceElement s : e.getStackTrace()) {
-            System.out.println(s);
-        }
-        return new ResponseEntity<>(response, response.httpStatus());
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    protected ResponseEntity<BaseResponseEntity<Void>> handleValidationException(MethodArgumentNotValidException e) {
-        BindingResult bindingResult = e.getBindingResult();
-
-        FieldError fieldError = bindingResult.getFieldError();
-        String errorMessage = (fieldError != null)
-                ? String.format("%s : %s", fieldError.getField(), fieldError.getDefaultMessage())
-                : "잘못된 요청입니다.";
+    private Mono<Void> handleValidationException(ServerWebExchange exchange, WebExchangeBindException e) {
+        String errorMessage = e.getBindingResult().getFieldErrors().stream()
+                .findFirst()
+                .map(fieldError -> String.format("%s : %s", fieldError.getField(), fieldError.getDefaultMessage()))
+                .orElse("잘못된 요청입니다.");
 
         log.warn("Validation failed: {}", errorMessage);
 
@@ -54,38 +62,49 @@ public class BaseExceptionHandler {
                 BaseResponseStatus.INVALID_REQUEST.getCode(),
                 null
         );
-        return new ResponseEntity<>(response, response.httpStatus());
-    }
 
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    protected ResponseEntity<BaseResponseEntity<Void>> handleJsonParseException(HttpMessageNotReadableException e) {
-        Throwable cause = e.getCause();
-
-        if (cause != null && cause.getMessage() != null && cause.getMessage().contains("java.time.LocalDate")) {
-            String errorMessage = "생년월일은 yyyy-mm-dd 형식이어야 합니다.";
-            log.warn("LocalDate parsing failed: {}", cause.getMessage());
-            return new ResponseEntity<>(
-                    new BaseResponseEntity<>(
-                            BaseResponseStatus.INVALID_REQUEST.getHttpStatusCode(),
-                            false,
-                            errorMessage,
-                            BaseResponseStatus.INVALID_REQUEST.getCode(),
-                            null
-                    ),
-                    BaseResponseStatus.INVALID_REQUEST.getHttpStatusCode()
-            );
-        }
-
-        return new ResponseEntity<>(
-                new BaseResponseEntity<>(
-                        BaseResponseStatus.INVALID_REQUEST.getHttpStatusCode(),
-                        false,
-                        "요청 형식이 올바르지 않습니다.",
-                        BaseResponseStatus.INVALID_REQUEST.getCode(),
-                        null
-                ),
-                BaseResponseStatus.INVALID_REQUEST.getHttpStatusCode()
+        exchange.getResponse().setStatusCode(HttpStatus.valueOf(response.httpStatus().value()));
+        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        
+        return exchange.getResponse().writeWith(
+                Mono.just(exchange.getResponse().bufferFactory().wrap(
+                        response.toString().getBytes()
+                ))
         );
     }
 
+    private Mono<Void> handleNoResourceFoundException(ServerWebExchange exchange, NoResourceFoundException e) {
+        log.warn("Resource not found: {}", e.getMessage());
+        
+        BaseResponseEntity<Void> response = new BaseResponseEntity<>(
+                BaseResponseStatus.NOT_FOUND.getHttpStatusCode(),
+                false,
+                "요청한 리소스를 찾을 수 없습니다.",
+                BaseResponseStatus.NOT_FOUND.getCode(),
+                null
+        );
+
+        exchange.getResponse().setStatusCode(HttpStatus.valueOf(response.httpStatus().value()));
+        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        
+        return exchange.getResponse().writeWith(
+                Mono.just(exchange.getResponse().bufferFactory().wrap(
+                        response.toString().getBytes()
+                ))
+        );
+    }
+
+    private Mono<Void> handleRuntimeException(ServerWebExchange exchange, RuntimeException e) {
+        BaseResponseEntity<Void> response = new BaseResponseEntity<>(BaseResponseStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+        log.error("RuntimeException: ", e);
+        
+        exchange.getResponse().setStatusCode(HttpStatus.valueOf(response.httpStatus().value()));
+        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        
+        return exchange.getResponse().writeWith(
+                Mono.just(exchange.getResponse().bufferFactory().wrap(
+                        response.toString().getBytes()
+                ))
+        );
+    }
 }

@@ -6,6 +6,7 @@ import back.vybz.chat_service.chat.dto.request.RequestCreateChatRoomDto;
 import back.vybz.chat_service.chat.dto.request.RequestLeaveChatRoomDto;
 import back.vybz.chat_service.chat.dto.response.ResponseChatRoomDto;
 import back.vybz.chat_service.common.util.CursorPageUtil;
+import reactor.core.publisher.Mono;
 
 import java.time.Instant;
 import java.util.List;
@@ -16,13 +17,13 @@ public interface ChatRoomService {
      * 채팅방 생성
      * @param requestCreateChatRoomDto
      */
-    ChatRoom createChatRoom(RequestCreateChatRoomDto requestCreateChatRoomDto);
+    Mono<ChatRoom> createChatRoom(RequestCreateChatRoomDto requestCreateChatRoomDto);
 
     /**
      * 참여자 UUID로 채팅방 조회
      * @param participantUuid
      */
-    CursorPageUtil<ResponseChatRoomDto, Instant> getChatRoomByParticipantUuidWithCursor(String participantUuid, Instant sentAt, Integer pageSize);
+    Mono<CursorPageUtil<ResponseChatRoomDto, Instant>> getChatRoomByParticipantUuidWithCursor(String participantUuid, Instant sentAt, Integer pageSize);
 
     /**
      * 특정 채팅방에 참여자 UUID가 활성화 상태인지 확인
@@ -36,33 +37,33 @@ public interface ChatRoomService {
      * @param chatRoomId
      * @param chatMessage
      */
-    void updateLastMessage(String chatRoomId, ChatMessage chatMessage);
+    Mono<Void> updateLastMessage(String chatRoomId, ChatMessage chatMessage);
 
     /**
      * 읽지않은 메시지 수 증가
      * @param chatRoomId
      * @param senderUuid
      */
-    void increaseUnreadCount(String chatRoomId, String senderUuid);
+    Mono<Void> increaseUnreadCount(String chatRoomId, String senderUuid);
 
     /**
      * 읽지않은 메시지 수 초기화
      * @param chatRoomId
      * @param participantUuid
      */
-    void resetUnreadCount(String chatRoomId, String participantUuid);
+    Mono<Void> resetUnreadCount(String chatRoomId, String participantUuid);
 
     /**
      * 채팅방 나가기
      * @param requestLeaveChatRoomDto
      */
-    void leaveChatRoom(RequestLeaveChatRoomDto requestLeaveChatRoomDto);
+    Mono<Void> leaveChatRoom(RequestLeaveChatRoomDto requestLeaveChatRoomDto);
 
     /**
      * 채팅방 재참여
      * @param chatRoomId
      * @param participantUuid
      */
-    void rejoinIfHidden(String chatRoomId, List<String> participantUuid);
+    Mono<Void> rejoinIfHidden(String chatRoomId, List<String> participantUuid);
 
 }

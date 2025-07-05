@@ -1,9 +1,9 @@
 package back.vybz.chat_service.chat.infrastructure;
 
 import back.vybz.chat_service.chat.domain.ChatRoom;
+import reactor.core.publisher.Flux;
 
 import java.time.Instant;
-import java.util.List;
 
 public interface ChatRoomRepositoryCustom {
 
@@ -13,6 +13,6 @@ public interface ChatRoomRepositoryCustom {
      * @param sentAt
      * @param pageSize
      */
-    List<ChatRoom> findByParticipantUuidWithCursor(String participantUuid, Instant sentAt, Integer pageSize);
+    Flux<ChatRoom> findByParticipantUuidWithCursor(String participantUuid, Instant sentAt, Integer pageSize);
 
 }

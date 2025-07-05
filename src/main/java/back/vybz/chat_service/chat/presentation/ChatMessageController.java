@@ -31,9 +31,9 @@ public class ChatMessageController {
      */
     @Operation(summary = "메시지 전송 API", description = "메시지 전송 API 입니다.", tags = {"Chat-Message-Service"})
     @PostMapping
-    public BaseResponseEntity<Void> sendMessage(@RequestBody RequestSendMessageVo requestSendMessageVo) {
-        chatMessageService.sendMessage(RequestSendMessageDto.from(requestSendMessageVo)).subscribe();
-        return new BaseResponseEntity<>(BaseResponseStatus.SUCCESS);
+    public Mono<BaseResponseEntity<Void>> sendMessage(@RequestBody RequestSendMessageVo requestSendMessageVo) {
+        return chatMessageService.sendMessage(RequestSendMessageDto.from(requestSendMessageVo))
+                .thenReturn(new BaseResponseEntity<>(BaseResponseStatus.SUCCESS));
     }
 
     /**

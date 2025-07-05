@@ -31,13 +31,6 @@ public interface ChatMessageService {
     Mono<CursorPageUtil<ResponseChatMessageDto, Instant>> getPreviousChatMessageByChatRoomId(String chatRoomId, String participantUuid, Instant sentAt, Integer pageSize);
 
     /**
-     * 읽지 않은 메시지를 읽음으로 표시, 실시간 emit
-     * @param chatRoomId
-     * @param participantUuid
-     */
-    Mono<Void> markUnreadMessagesAsRead(String chatRoomId, String participantUuid);
-
-    /**
      * 읽지않은 메시지 수 초기화
      * @param chatRoomId
      * @param participantUuid

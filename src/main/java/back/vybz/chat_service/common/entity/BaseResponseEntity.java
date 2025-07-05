@@ -1,10 +1,16 @@
 package back.vybz.chat_service.common.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 
-public record BaseResponseEntity<T>(@Schema(hidden = true) HttpStatusCode httpStatus, Boolean isSuccess, String message, int code, T result) {
+public record BaseResponseEntity<T>(
+    @Schema(hidden = true) HttpStatusCode httpStatus, 
+    @JsonProperty("isSuccess") Boolean isSuccess, 
+    @JsonProperty("message") String message, 
+    @JsonProperty("code") int code, 
+    @JsonProperty("result") T result) {
 
     /**
      * 필요값 : Http상태코드, 성공여부, 메시지, 에러코드, 결과값
@@ -52,5 +58,11 @@ public record BaseResponseEntity<T>(@Schema(hidden = true) HttpStatusCode httpSt
                 base.getCode(),
                 result
         );
+    }
+
+    @Override
+    public String toString() {
+        return String.format("{\"isSuccess\":%s,\"message\":\"%s\",\"code\":%d,\"result\":%s}", 
+            isSuccess, message, code, result != null ? result.toString() : "null");
     }
 }

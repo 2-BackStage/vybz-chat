@@ -43,6 +43,11 @@ public enum BaseResponseStatus {
     INVALID_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, false, 410, "유효하지 않은 Access Token입니다."),
 
     /**
+     * 404: 리소스 없음
+     */
+    NOT_FOUND(HttpStatus.NOT_FOUND, false, 404, "요청한 리소스를 찾을 수 없습니다."),
+
+    /**
      * 900: 기타 에러
      */
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, false, 900, "Internal server error"),

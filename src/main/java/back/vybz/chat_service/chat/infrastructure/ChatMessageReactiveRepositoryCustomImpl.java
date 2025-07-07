@@ -29,7 +29,8 @@ public class ChatMessageReactiveRepositoryCustomImpl implements ChatMessageReact
     @Override
     public Flux<ChatMessage> findByChatRoomIdWithCursor(String chatRoomId, Instant sentAt, Integer pageSize) {
         Query query = new Query();
-        query.addCriteria(Criteria.where("chatRoomId").is(chatRoomId));
+        query.addCriteria(Criteria.where("chatRoomId").is(chatRoomId)
+            .and("messageType").ne("SYSTEM"));
         Query finalQuery = MongoCursorHelper.build(query, "sentAt", sentAt, pageSize, Sort.Direction.DESC);
         return reactiveMongoTemplate.find(finalQuery, ChatMessage.class);
     }
@@ -43,7 +44,8 @@ public class ChatMessageReactiveRepositoryCustomImpl implements ChatMessageReact
     @Override
     public Flux<ChatMessage> findByChatRoomIdWithCursorAndAfterLeft(
             String chatRoomId, Instant leftAt, Instant sentAt, Integer pageSize) {
-        Criteria criteria = Criteria.where("chatRoomId").is(chatRoomId);
+        Criteria criteria = Criteria.where("chatRoomId").is(chatRoomId)
+            .and("messageType").ne("SYSTEM");
         List<Criteria> timeCriteria = new ArrayList<>();
         if (leftAt != null) {
             timeCriteria.add(Criteria.where("sentAt").gt(leftAt));

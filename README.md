@@ -1,161 +1,685 @@
-# 🎵 VYBZ Chat Service
+# VYBZ Chat Service
 
-VYBZ 플랫폼의 실시간 채팅/메시지 관리 마이크로서비스
-채팅방 생성/입장/퇴장, 메시지 송수신, 실시간 구독, 읽음/안읽음, 송신자 타입 등 다양한 채팅 도메인 관리와 확장성을 고려한 Spring Boot 기반 서비스입니다.
+VYBZ 플랫폼의 실시간 채팅과 라이브 채팅을 담당하는 마이크로서비스입니다.
 
----
+## 📋 목차
 
-## 🛠 Tech Stack
+-   [개요](#개요)
+-   [기술 스택](#기술-스택)
+-   [주요 기능](#주요-기능)
+-   [프로젝트 구조](#프로젝트-구조)
+-   [API 문서](#api-문서)
+-   [설치 및 실행](#설치-및-실행)
+-   [환경 설정](#환경-설정)
+-   [채팅 시스템](#채팅-시스템)
+-   [라이브 채팅 시스템](#라이브-채팅-시스템)
+-   [이벤트 처리](#이벤트-처리)
 
-| 구분            | 기술/버전                                      |
-|----------------|-----------------------------------------------|
-| Language       | Java 17                                       |
-| Framework      | Spring Boot 3.4.5, Spring WebFlux (리액티브)   |
-| Database       | MongoDB (Spring Data MongoDB, Reactive 지원), MySQL (JPA) |
-| Service Discovery | Netflix Eureka Client                      |
-| Build          | Gradle 8.4                                    |
-| Test           | JUnit 5, Spring Boot Test                     |
-| 기타           | Lombok, Swagger(OpenAPI 3.0, 어노테이션 기반), Layered Architecture     |
+## 🎯 개요
 
----
+VYBZ Chat Service는 다음과 같은 기능을 제공합니다:
 
-## 🏗️ 아키텍처 및 레이어 구조
+-   **1:1 채팅**: 사용자 간 개인 메시지 송수신
+-   **라이브 채팅**: WebSocket을 통한 실시간 라이브 방송 채팅
+-   **채팅방 관리**: 채팅방 생성, 참여, 퇴장 관리
+-   **메시지 처리**: 채팅 메시지 송수신 및 저장
+-   **실시간 알림**: SSE(Server-Sent Events)를 통한 실시간 메시지 알림
+-   **이벤트 처리**: Kafka를 통한 채팅 이벤트 발행
+-   **데이터 저장**: MySQL과 MongoDB를 통한 메시지 및 사용자 데이터 저장
 
-- **Layered Architecture**: Presentation(Controller), Application(Service), Domain, DTO/VO, Infrastructure, Common 등 계층 분리
-- **Domain-Driven Design (DDD)**: 채팅 도메인 모델 중심 설계
-- **Reactive Programming**: WebFlux, MongoDB 리액티브 저장소, SSE 기반 실시간 메시지 구독
-- **확장성**: MongoDB 기반 메시지/채팅방 관리, MySQL 연동 가능
+## 🛠 기술 스택
 
-### 📁 프로젝트 구조
+### Backend
+
+![Spring Cloud](https://img.shields.io/badge/Spring_Cloud-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
+![Java](https://img.shields.io/badge/Java-007396?style=for-the-badge&logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
+![JPA](https://img.shields.io/badge/JPA-59666C?style=for-the-badge)
+![Spring WebSocket](https://img.shields.io/badge/Spring_WebSocket-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
+![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-231F20?style=for-the-badge&logo=apachekafka&logoColor=white)
+![Swagger](https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)
+
+### Infra
+
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+![Amazon EC2](https://img.shields.io/badge/Amazon_EC2-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)
+![Nginx](https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+
+### 협업
+
+![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)
+![Notion](https://img.shields.io/badge/Notion-000000?style=for-the-badge&logo=notion&logoColor=white)
+![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white)
+
+### Database & Cache
+
+-   **MySQL 8.0**: 채팅방 정보 및 사용자 데이터 저장
+-   **MongoDB**: 실시간 채팅 메시지 저장 (Change Stream 활용)
+-   **Redis**: 실시간 세션 관리 및 캐싱
+
+### Message Queue
+
+-   **Apache Kafka**: 비동기 이벤트 처리
+
+### Documentation
+
+-   **Swagger/OpenAPI 3.0**: API 문서화
+
+### Build & Deploy
+
+-   **Gradle**: 빌드 도구
+-   **Docker**: 컨테이너화
+
+## 🚀 주요 기능
+
+### 1. 1:1 채팅 시스템
+
+-   **SSE 연결**: Server-Sent Events를 통한 실시간 메시지 수신
+-   **채팅방 생성**: 자동 채팅방 생성 및 참여자 관리
+-   **메시지 송수신**: 실시간 메시지 전송 및 수신
+-   **읽음 처리**: 메시지 읽음 상태 관리
+-   **메시지 히스토리**: 과거 메시지 조회 (커서 기반 페이징)
+-   **MongoDB Change Stream**: 실시간 메시지 변경 감지
+
+### 2. 라이브 채팅 시스템
+
+-   **WebSocket 연결**: STOMP 프로토콜을 통한 실시간 양방향 통신
+-   **라이브 방송 채팅**: 라이브 방송 중 실시간 채팅
+-   **브로드캐스트**: 같은 라이브 방송 시청자에게 메시지 브로드캐스트
+-   **연결 관리**: WebSocket 연결 상태 모니터링
+
+### 3. 채팅방 관리
+
+-   **채팅방 생성**: 자동 채팅방 생성
+-   **참여자 관리**: 채팅방 참여자 목록 관리
+-   **숨김 처리**: 채팅방 숨김/재참여 기능
+-   **마지막 메시지**: 채팅방별 마지막 메시지 정보
+
+### 4. 메시지 처리
+
+-   **메시지 타입**: 텍스트, 이미지, 비디오, 시스템 메시지 지원
+-   **메시지 검증**: 부적절한 메시지 필터링
+-   **읽지 않은 메시지**: 읽지 않은 메시지 수 관리
+-   **메시지 저장**: MongoDB에 채팅 메시지 저장
+
+### 5. 실시간 알림
+
+-   **새 메시지 알림**: 실시간 새 메시지 알림
+-   **읽음 상태**: 메시지 읽음 상태 실시간 업데이트
+-   **시스템 메시지**: 시스템 공지사항 전송
+
+## 📁 프로젝트 구조
 
 ```
-vybz-chat/
-├── build.gradle
-├── settings.gradle
-├── src/
-│   └── main/
-│       ├── java/
-│       │   └── back/
-│       │       └── vybz/
-│       │           └── chat_service/
-│       │               ├── chat/
-│       │               │   ├── presentation/    # 💡 Controller(API)
-│       │               │   ├── application/     # ⚙️ Service
-│       │               │   ├── domain/          # 🧩 Domain Model
-│       │               │   ├── vo/              # 🧾 VO (값 객체)
-│       │               │   ├── dto/             # 📦 DTO
-│       │               │   └── infrastructure/  # 🗄 Repository
-│       │               ├── common/              # 🛠 공통 유틸, 예외, 설정
-│       │               └── ChatServiceApplication.java
-└── ...
+src/main/java/back/vybz/chat_service/
+├── common/                    # 공통 모듈
+│   ├── config/               # 설정 클래스들
+│   │   ├── WebSocketConfig.java
+│   │   ├── ChatKafkaConfig.java
+│   │   ├── LiveChatKafkaConfig.java
+│   │   ├── CommonKafkaConfig.java
+│   │   ├── MongoConfig.java
+│   │   ├── ReactiveRedisConfig.java
+│   │   ├── SwaggerConfig.java
+│   │   └── WebMvcAsyncConfig.java
+│   ├── entity/               # 공통 엔티티
+│   │   ├── BaseResponseEntity.java
+│   │   └── BaseResponseStatus.java
+│   ├── exception/            # 예외 처리
+│   │   ├── BaseException.java
+│   │   ├── BaseExceptionHandler.java
+│   │   ├── BaseExceptionHandlerFilter.java
+│   │   └── AsyncExceptionHandler.java
+│   └── util/                 # 유틸리티
+│       ├── ChatSinkManager.java
+│       ├── ChatMessageChangeFilter.java
+│       ├── ChatMessageChangeStreamListener.java
+│       ├── RedisUtil.java
+│       ├── CursorPageUtil.java
+│       └── MongoCursorHelper.java
+├── kafka/                    # Kafka 이벤트 처리
+│   ├── config/               # Kafka 설정
+│   │   ├── ChatKafkaConfig.java
+│   │   ├── LiveChatKafkaConfig.java
+│   │   └── CommonKafkaConfig.java
+│   ├── event/                # 이벤트 모델
+│   │   ├── ChatEvent.java
+│   │   └── LiveChatEvent.java
+│   ├── producer/             # 이벤트 프로듀서
+│   │   ├── ChatKafkaProducer.java
+│   │   └── LiveChatKafkaProducer.java
+│   └── consumer/             # 이벤트 컨슈머
+│       └── LiveChatEventConsumer.java
+├── chat/                     # 1:1 채팅 도메인
+│   ├── application/          # 채팅 서비스 로직
+│   │   ├── ChatMessageService.java
+│   │   ├── ChatMessageServiceImpl.java
+│   │   ├── ChatRoomService.java
+│   │   ├── ChatRoomServiceImpl.java
+│   │   ├── ParticipantManager.java
+│   │   └── ParticipantManagerImpl.java
+│   ├── domain/               # 채팅 도메인 모델
+│   │   ├── ChatRoom.java
+│   │   ├── ChatMessage.java
+│   │   ├── Participant.java
+│   │   ├── LastMessage.java
+│   │   ├── MessageType.java
+│   │   └── SenderType.java
+│   ├── dto/                  # 채팅 DTO
+│   │   ├── request/
+│   │   │   ├── RequestCreateChatRoomDto.java
+│   │   │   ├── RequestEnterChatRoomDto.java
+│   │   │   ├── RequestLeaveChatRoomDto.java
+│   │   │   └── RequestSendMessageDto.java
+│   │   └── response/
+│   │       ├── ResponseChatMessageDto.java
+│   │       └── ResponseChatRoomDto.java
+│   ├── infrastructure/       # 채팅 리포지토리
+│   │   ├── ChatMessageReactiveRepository.java
+│   │   ├── ChatMessageReactiveRepositoryCustom.java
+│   │   ├── ChatMessageReactiveRepositoryCustomImpl.java
+│   │   ├── ChatRoomRepository.java
+│   │   ├── ChatRoomRepositoryCustom.java
+│   │   └── ChatRoomRepositoryCustomImpl.java
+│   ├── presentation/         # 채팅 컨트롤러
+│   │   ├── ChatMessageController.java
+│   │   └── ChatRoomController.java
+│   └── vo/                   # 채팅 VO
+│       ├── request/
+│       │   ├── RequestCreateChatRoomVo.java
+│       │   ├── RequestEnterChatRoomVo.java
+│       │   ├── RequestLeaveChatRoomVo.java
+│       │   └── RequestSendMessageVo.java
+│       └── response/
+│           ├── ResponseChatMessageVo.java
+│           └── ResponseChatRoomVo.java
+└── live_chat/                # 라이브 채팅 도메인
+    ├── application/          # 라이브 채팅 서비스 로직
+    │   ├── LiveChatService.java
+    │   └── LiveChatServiceImpl.java
+    ├── domain/               # 라이브 채팅 도메인 모델
+    │   └── LiveChatType.java
+    ├── dto/                  # 라이브 채팅 DTO
+    │   ├── request/
+    │   │   └── RequestSendLiveChatDto.java
+    │   └── response/
+    │       └── ResponseLiveChatDto.java
+    ├── interceptor/          # WebSocket 인터셉터
+    │   └── LiveChatHandShakeInterceptor.java
+    ├── presentation/         # 라이브 채팅 컨트롤러
+    │   ├── LiveChatController.java
+    │   └── LiveChatDocController.java
+    └── vo/                   # 라이브 채팅 VO
+        ├── request/
+        │   └── RequestSendLiveChatVo.java
+        └── response/
+            └── ResponseLiveChatVo.java
 ```
 
----
+## 📚 API 문서
 
-## 💡 Presentation Layer (API)
+Swagger UI를 통해 API 문서를 확인할 수 있습니다:
 
-### 주요 엔드포인트
+-   **URL**: `http://localhost:8000/chat-service/swagger-ui/index.html`
+-   **API 그룹**: CHAT-SERVICE
 
-#### [채팅방 API] `/api/v1/chat-room`
+### 주요 API 엔드포인트
 
-- **POST /** : 채팅방 생성/재입장  
-  - Request: `RequestCreateChatRoomVo`
-  - Response: `BaseResponseEntity<Void>`
-- **GET /search** : 참여자 UUID로 채팅방 목록 조회 (커서 기반 페이지네이션)
-  - Request: `participantUuid`, `sentAt`, `pageSize`
-  - Response: `BaseResponseEntity<CursorPageUtil<ResponseChatRoomVo, Instant>>`
-- **DELETE /leave** : 채팅방 퇴장
-  - Request: `RequestLeaveChatRoomVo`
-  - Response: `BaseResponseEntity<Void>`
+#### 1:1 채팅 API
 
-#### [메시지 API] `/api/v1/chat-message`
+-   `POST /api/v1/chat-room` - 채팅방 생성/재참여
+-   `GET /api/v1/chat-room/search` - 사용자 UUID로 채팅방 조회
+-   `DELETE /api/v1/chat-room/leave` - 채팅방 나가기
+-   `POST /api/v1/chat-message` - 메시지 전송
+-   `GET /api/v1/chat-message/subscribe` - 실시간 채팅방 메시지 구독 (SSE)
+-   `GET /api/v1/chat-message/previous` - 이전 메시지 조회
+-   `POST /api/v1/chat-message/read` - 읽지 않은 메시지를 읽음으로 표시
+-   `POST /api/v1/chat-message/reset-unread` - 읽지 않은 메시지 수 초기화
 
-- **POST /** : 메시지 전송
-  - Request: `RequestSendMessageVo`
-  - Response: `BaseResponseEntity<Void>`
-- **GET /subscribe** : 채팅방 실시간 메시지 구독 (SSE, Flux)
-  - Request: `chatRoomId`, `participantUuid`
-  - Response: `Flux<ResponseChatMessageVo>`
-- **GET /search** : 채팅방 이전 메시지 조회 (커서 기반 페이지네이션)
-  - Request: `chatRoomId`, `participantUuid`, `sentAt`, `pageSize`
-  - Response: `BaseResponseEntity<CursorPageUtil<ResponseChatMessageVo, Instant>>`
+#### 라이브 채팅 WebSocket 엔드포인트
 
----
+-   `WS /ws/live-chat?liveId={liveId}` - 라이브 채팅 WebSocket 연결
+-   `STOMP /app/live-chat/sendMessage` - 라이브 채팅 메시지 전송
+-   `STOMP /topic/live-chat/{liveId}` - 라이브 채팅 메시지 구독
 
-## ⚙️ Application Layer (Service)
+### API 요청/응답 예시
 
-- **ChatRoomService/Impl**: 채팅방 생성, 입장, 퇴장, 조회 등 비즈니스 로직
-- **ChatMessageService/Impl**: 메시지 전송, 구독, 이전 메시지 조회, 시스템 메시지 등 비즈니스 로직
+#### 채팅방 생성 요청
 
----
+```json
+{
+    "participantUuid": "user-uuid-1",
+    "receiverUuid": "user-uuid-2"
+}
+```
 
-## 🧩 Domain Layer
+#### 메시지 전송 요청
 
-- **ChatRooms**: 채팅방 정보, 참여자 UUID, 읽지 않은 메시지 수, 마지막 메시지, 생성/수정일시 등 관리
-- **ChatMessages**: 메시지 본문, 송신자 ID/타입, 읽음 여부, 생성/수정일시 등 관리
-- **LastMessage**: 채팅방의 마지막 메시지 정보(내용, 송신자, 타입, 전송시각)
-- **SenderType**: 송신자 구분 (USER/사용자, BUSKER/버스커)
+```json
+{
+    "chatRoomId": "chat-room-id",
+    "senderUuid": "user-uuid-1",
+    "receiverUuid": "user-uuid-2",
+    "messageType": "TEXT",
+    "content": "안녕하세요!"
+}
+```
 
----
+#### 라이브 채팅 WebSocket 메시지 형식
 
-## 🧾 VO/DTO
+```json
+{
+    "senderUuid": "user-uuid",
+    "content": "안녕하세요!"
+}
+```
 
-- **VO**: API 요청/응답용 값 객체 (ex. `RequestSendMessageVo`, `ResponseChatRoomVo`)
-- **DTO**: 계층 간 데이터 전달 객체 (ex. `RequestSendMessageDto`, `ResponseChatMessageDto`)
+## 🚀 설치 및 실행
 
----
+### 1. 사전 요구사항
 
-## 🗄 Infrastructure Layer
+-   Java 17
+-   Gradle 8.4+
+-   Docker (선택사항)
+-   MySQL 8.0
+-   MongoDB 6.0+
+-   Redis 6.0+
+-   Kafka 3.0+
 
-- **Repository**: MongoDB 기반 채팅방/메시지 저장소, 리액티브/커스텀 쿼리 지원
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Java 17+
-- Gradle 8.4+
-- MongoDB
-
-### Local Development
+### 2. 로컬 실행
 
 ```bash
-# 1. 프로젝트 클론
-git clone <YOUR_REPO_URL>
+# 프로젝트 클론
+git clone <repository-url>
 cd vybz-chat
 
-# 2. 빌드 및 실행 (로컬)
-./gradlew clean build -x test
-# java -jar build/libs/*.jar 또는 IDE 실행
+# Gradle 빌드
+./gradlew clean build
 
-# 3. API 문서 (Swagger 등)
-# http://localhost:8080/swagger-ui/index.html (Swagger 어노테이션 기반, springdoc-openapi 필요)
+# 애플리케이션 실행
+./gradlew bootRun
 ```
 
+### 3. Docker 실행
+
+```bash
+# Docker 이미지 빌드
+docker build -t vybz-chat .
+
+# Docker 컨테이너 실행
+docker run -p 8000:8000 vybz-chat
+```
+
+## ⚙️ 환경 설정
+
+### 주요 설정 파일
+
+-   `application.yml`: 기본 설정
+
+### 환경 변수
+
+```yaml
+# 데이터베이스 설정
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+# MongoDB 설정
+spring:
+  data:
+    mongodb:
+      uri: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/${MONGO_DATABASE}
+
+# Redis 설정
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+
+# Kafka 설정
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS}
+```
+
+## 💬 채팅 시스템
+
+### 1:1 채팅 시스템
+
+#### SSE 연결
+
+```javascript
+// SSE 연결 예시
+const eventSource = new EventSource('/api/v1/chat-message/subscribe?chatRoomId=room-id&participantUuid=user-uuid');
+
+eventSource.onmessage = function(event) {
+    const message = JSON.parse(event.data);
+    console.log('새 메시지:', message);
+};
+
+eventSource.onerror = function(error) {
+    console.error('SSE 연결 오류:', error);
+};
+```
+
+#### 메시지 타입
+
+-   **TEXT**: 텍스트 메시지
+-   **IMAGE**: 이미지 메시지
+-   **VIDEO**: 비디오 메시지
+-   **SYSTEM**: 시스템 메시지
+-   **LEFT**: 참여자 나감 메시지
+
+#### MongoDB Change Stream
+
+-   **실시간 감지**: MongoDB Change Stream을 통한 실시간 메시지 변경 감지
+-   **필터링**: insert/update 이벤트만 처리
+-   **읽음 처리**: 읽음 상태 변경 시 실시간 알림
+
+### 라이브 채팅 시스템
+
+#### WebSocket 연결
+
+```javascript
+// WebSocket 연결 예시
+const socket = new WebSocket('ws://localhost:8000/ws/live-chat?liveId=live-id');
+
+// STOMP 클라이언트 설정
+const stompClient = Stomp.over(socket);
+
+stompClient.connect({}, function(frame) {
+    console.log('WebSocket 연결됨');
+    
+    // 메시지 구독
+    stompClient.subscribe('/topic/live-chat/live-id', function(message) {
+        const chatMessage = JSON.parse(message.body);
+        console.log('라이브 채팅 메시지:', chatMessage);
+    });
+});
+
+// 메시지 전송
+function sendLiveChatMessage(content) {
+    stompClient.send('/app/live-chat/sendMessage', {}, JSON.stringify({
+        senderUuid: 'user-uuid',
+        content: content
+    }));
+}
+```
+
+#### 라이브 채팅 타입
+
+-   **JOIN**: 참여자 입장
+-   **CHAT**: 채팅 메시지
+-   **LEAVE**: 참여자 나감
+-   **CLOSE**: 라이브 종료
+
+### 채팅방 관리
+
+#### 채팅방 상태
+
+-   **참여자 관리**: 채팅방 참여자 목록 및 상태 관리
+-   **숨김 처리**: 채팅방 숨김/재참여 기능
+-   **읽지 않은 메시지**: 참여자별 읽지 않은 메시지 수 관리
+-   **마지막 메시지**: 채팅방별 마지막 메시지 정보
+
+#### 참여자 권한
+
+-   **일반 사용자**: 메시지 송수신, 채팅방 나가기
+-   **시스템**: 시스템 메시지 전송
+
+### 메시지 처리
+
+#### 메시지 저장
+
+-   **MySQL**: 채팅방 정보, 사용자 정보
+-   **MongoDB**: 실시간 채팅 메시지 (Change Stream 활용)
+-   **Redis**: 실시간 세션 및 캐시
+
+#### 메시지 검증
+
+-   **길이 제한**: 메시지 길이 제한
+-   **금지어 필터링**: 부적절한 단어 필터링
+-   **스팸 방지**: 과도한 메시지 전송 방지
+
+## 📡 이벤트 처리
+
+### Kafka 이벤트
+
+#### 발행 이벤트
+
+-   **ChatEvent**: 1:1 채팅 이벤트
+    -   `chatRoomId`: 채팅방 ID
+    -   `senderUuid`: 발신자 UUID
+    -   `receiverUuid`: 수신자 UUID
+
+-   **LiveChatEvent**: 라이브 채팅 이벤트
+    -   `liveId`: 라이브 방송 ID
+    -   `senderUuid`: 발신자 UUID
+    -   `content`: 채팅 내용
+
+#### 구독 이벤트
+
+-   **LiveChatEvent**: 라이브 채팅 이벤트 구독 및 브로드캐스트
+
+### 이벤트 프로듀서
+
+-   `ChatKafkaProducer`: 1:1 채팅 이벤트 발행
+-   `LiveChatKafkaProducer`: 라이브 채팅 이벤트 발행
+
+### 이벤트 컨슈머
+
+-   `LiveChatEventConsumer`: 라이브 채팅 이벤트 구독 및 WebSocket 브로드캐스트
+
+### Kafka 토픽
+
+-   `chat-message`: 1:1 채팅 이벤트 토픽
+-   `live-chat`: 라이브 채팅 이벤트 토픽
+
+### 이벤트 발행 시점
+
+-   **메시지 전송**: 사용자가 메시지 전송 시
+-   **라이브 채팅**: 라이브 방송 중 채팅 메시지 전송 시
+
+## 🏗 아키텍처
+
+### 도메인 주도 설계 (DDD)
+
+-   **Domain Layer**: 채팅 도메인 모델과 비즈니스 로직
+-   **Application Layer**: 채팅 서비스 로직과 유스케이스
+-   **Infrastructure Layer**: 데이터베이스 접근과 외부 시스템 연동
+-   **Presentation Layer**: REST API 및 WebSocket 엔드포인트
+
+### 마이크로서비스 패턴
+
+-   **Service Discovery**: Eureka Client를 통한 서비스 등록
+-   **Event-Driven**: Kafka를 통한 비동기 이벤트 처리
+-   **Stateless**: 상태 없는 서비스 설계
+
+### 데이터베이스 설계
+
+-   **MySQL**: 채팅방 정보, 사용자 정보, 시스템 데이터
+-   **MongoDB**: 실시간 채팅 메시지 저장 (Change Stream 활용)
+-   **Redis**: 실시간 세션 관리 및 캐싱
+
+### WebSocket 아키텍처
+
+-   **STOMP**: WebSocket 메시징 프로토콜
+-   **세션 관리**: WebSocket 세션 속성을 통한 라이브 ID 관리
+-   **메시지 라우팅**: 라이브 방송별 메시지 라우팅
+-   **연결 관리**: 연결 상태 모니터링
+
+### SSE 아키텍처
+
+-   **Sink 기반**: Reactor Sink를 통한 메시지 스트리밍
+-   **참가자 관리**: 채팅방별 참가자 등록/해제
+-   **핑 메시지**: 연결 상태 유지를 위한 핑 메시지
+-   **자동 정리**: 참가자가 없을 때 Sink 자동 정리
+
+## 🔧 개발 가이드
+
+### 코드 컨벤션
+
+-   **패키지 구조**: 도메인별 계층 분리
+-   **네이밍**: 명확하고 일관된 네이밍 규칙
+-   **예외 처리**: BaseException을 통한 통일된 예외 처리
+-   **로깅**: Slf4j를 통한 구조화된 로깅
+
+### 테스트
+
+```bash
+# 단위 테스트 실행
+./gradlew test
+
+# 통합 테스트 실행
+./gradlew integrationTest
+
+# WebSocket 테스트
+./gradlew test --tests "*WebSocketTest*"
+```
+
+### WebSocket 테스트
+
+```javascript
+// WebSocket 연결 테스트
+const WebSocket = require('ws');
+const ws = new WebSocket('ws://localhost:8080/ws/live-chat?liveId=test-live');
+
+ws.on('open', function open() {
+    console.log('연결됨');
+    
+    // STOMP 메시지 전송
+    ws.send(JSON.stringify({
+        destination: '/app/live-chat/sendMessage',
+        body: JSON.stringify({
+            senderUuid: 'test-user',
+            content: '테스트 메시지'
+        })
+    }));
+});
+
+ws.on('message', function message(data) {
+    console.log('수신:', JSON.parse(data));
+});
+```
+
+### 성능 최적화
+
+#### 데이터베이스 최적화
+
+-   **인덱싱**: 자주 조회되는 필드에 인덱스 설정
+-   **배치 처리**: 대량 데이터 처리 시 배치 사용
+-   **캐싱**: Redis를 통한 자주 조회되는 데이터 캐싱
+
+#### WebSocket 최적화
+
+-   **연결 풀링**: 연결 수 제한 및 관리
+-   **메시지 압축**: 대용량 메시지 압축 전송
+-   **하트비트**: 연결 상태 모니터링
+
+#### SSE 최적화
+
+-   **Sink 관리**: 메모리 효율적인 Sink 관리
+-   **백프레셔**: 메시지 백프레셔 처리
+-   **자동 정리**: 사용하지 않는 Sink 자동 정리
+
+#### Kafka 최적화
+
+-   **배치 전송**: 메시지 배치 처리
+-   **파티션 관리**: 토픽 파티션 최적화
+-   **컨슈머 그룹**: 컨슈머 그룹 설정
+
+## 📊 모니터링
+
+### 로깅
+
+-   **애플리케이션 로그**: Spring Boot 로깅
+-   **WebSocket 로그**: 연결 및 메시지 로깅
+-   **SSE 로그**: SSE 연결 및 메시지 로깅
+-   **데이터베이스 로그**: 쿼리 성능 로깅
+
+### 메트릭
+
+-   **연결 수**: 활성 WebSocket/SSE 연결 수
+-   **메시지 처리량**: 초당 처리 메시지 수
+-   **응답 시간**: API 응답 시간
+-   **에러율**: 에러 발생률
+
+### 알림
+
+-   **연결 실패**: WebSocket/SSE 연결 실패 알림
+-   **데이터베이스 오류**: DB 연결 오류 알림
+-   **Kafka 오류**: 메시지 전송 실패 알림
+
+## 🚨 트러블슈팅
+
+### 일반적인 문제
+
+#### WebSocket 연결 실패
+
+```bash
+# 포트 확인
+netstat -an | grep 8000
+
+# 방화벽 설정 확인
+sudo ufw status
+```
+
+#### SSE 연결 실패
+
+```bash
+# 애플리케이션 로그 확인
+tail -f logs/application.log
+
+# Redis 연결 확인
+redis-cli -h <탄력적 IP> -p 63379 -a vybz1234 ping
+```
+
+#### 데이터베이스 연결 오류
+
+```bash
+# MySQL 연결 확인
+mysql -h <탄력적 IP> -P 33306 -u vybz -p
+
+# MongoDB 연결 확인
+mongo mongodb://vybz:vybz1234@<탄력적 IP>:27020/vybz?authSource=admin
+```
+
+#### Kafka 연결 오류
+
+```bash
+# Kafka 브로커 상태 확인
+kafka-topics.sh --bootstrap-server <탄력적 IP>:10000 --list
+```
+
+### 로그 확인
+
+```bash
+# 애플리케이션 로그 확인
+tail -f logs/application.log
+
+# 에러 로그 확인
+grep "ERROR" logs/application.log
+
+# WebSocket 로그 확인
+grep "WebSocket" logs/application.log
+```
+
+## 📝 라이선스
+
+이 프로젝트는 VYBZ 팀의 내부 프로젝트입니다.
+
+## 👥 팀
+
+-   **개발팀**: VYBZ Backend Team
+
 ---
 
-## 🔧 주요 기능
-
-- 채팅방 생성/입장/퇴장
-- 메시지 송수신, 읽음/안읽음 관리
-- 실시간 메시지 구독 (SSE, WebFlux)
-- 송신자 타입(사용자/버스커) 구분
-- 커서 기반 페이지네이션
-- 도메인 모델 기반 확장성
-- (추후) Kafka, 실시간 동기화, API 문서화 등 확장 가능
-
----
-
-## 🧪 테스트
-
-- Spring Boot Test, JUnit5 기반 기본 컨텍스트 로딩 테스트 포함
-- `src/test/java/back/vybz/chat_service/ChatServiceApplicationTests.java`
-
----
-
-## 📞 Contact
-
-- Team: VYBZ Development Team
-- Made with ❤️ by VYBZ Team 
+**VYBZ Chat Service** - 실시간 채팅 및 라이브 채팅 서비스

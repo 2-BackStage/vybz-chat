@@ -34,7 +34,6 @@ VYBZ Chat Service는 다음과 같은 기능을 제공합니다:
 ![Spring Cloud](https://img.shields.io/badge/Spring_Cloud-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
 ![Java](https://img.shields.io/badge/Java-007396?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
 ![JPA](https://img.shields.io/badge/JPA-59666C?style=for-the-badge)
@@ -57,7 +56,6 @@ VYBZ Chat Service는 다음과 같은 기능을 제공합니다:
 
 ### Database & Cache
 
--   **MySQL 8.0**: 채팅방 정보 및 사용자 데이터 저장
 -   **MongoDB**: 실시간 채팅 메시지 저장 (Change Stream 활용)
 -   **Redis**: 실시간 세션 관리 및 캐싱
 
@@ -90,7 +88,7 @@ VYBZ Chat Service는 다음과 같은 기능을 제공합니다:
 -   **비동기 처리**: WebFlux를 통한 비차단 I/O 처리
 -   **반응형 스트림**: Reactor를 활용한 메시지 스트리밍
 -   **백프레셔 처리**: 메시지 흐름 제어 및 백프레셔 관리
--   **Sink 기반 메시징**: Reactor Sink를 통한 효율적인 메시지 전달
+-   **Sink 기반 메시징**: Reactor Sink를 읽음 처리 메시지 전달
 
 ### 3. 채팅방 관리
 
@@ -199,7 +197,7 @@ src/main/java/back/vybz/chat_service/
 
 Swagger UI를 통해 API 문서를 확인할 수 있습니다:
 
--   **URL**: `http://localhost:8000/chat-service/swagger-ui/index.html`
+-   **URL**: `http://localhost:8000/chat-service/swagger-ui.html`
 -   **API 그룹**: CHAT-SERVICE
 
 ### 주요 API 엔드포인트
@@ -245,7 +243,6 @@ Swagger UI를 통해 API 문서를 확인할 수 있습니다:
 -   Java 17
 -   Gradle 8.4+
 -   Docker (선택사항)
--   MySQL 8.0
 -   MongoDB 6.0+
 -   Redis 6.0+
 -   Kafka 3.0+

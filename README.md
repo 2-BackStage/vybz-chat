@@ -1,6 +1,6 @@
 # VYBZ Chat Service
 
-VYBZ 플랫폼의 실시간 채팅과 라이브 채팅을 담당하는 마이크로서비스입니다.
+VYBZ 플랫폼의 실시간 채팅을 담당하는 마이크로서비스입니다.
 
 ## 📋 목차
 
@@ -20,12 +20,12 @@ VYBZ 플랫폼의 실시간 채팅과 라이브 채팅을 담당하는 마이크
 VYBZ Chat Service는 다음과 같은 기능을 제공합니다:
 
 -   **1:1 채팅**: 사용자 간 개인 메시지 송수신
--   **라이브 채팅**: WebSocket을 통한 실시간 라이브 방송 채팅
 -   **채팅방 관리**: 채팅방 생성, 참여, 퇴장 관리
 -   **메시지 처리**: 채팅 메시지 송수신 및 저장
 -   **실시간 알림**: SSE(Server-Sent Events)를 통한 실시간 메시지 알림
 -   **이벤트 처리**: Kafka를 통한 채팅 이벤트 발행
 -   **데이터 저장**: MySQL과 MongoDB를 통한 메시지 및 사용자 데이터 저장
+-   **반응형 프로그래밍**: WebFlux를 통한 비동기 비차단 처리
 
 ## 🛠 기술 스택
 
@@ -38,7 +38,7 @@ VYBZ Chat Service는 다음과 같은 기능을 제공합니다:
 ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
 ![JPA](https://img.shields.io/badge/JPA-59666C?style=for-the-badge)
-![Spring WebSocket](https://img.shields.io/badge/Spring_WebSocket-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
+![Spring WebFlux](https://img.shields.io/badge/Spring_WebFlux-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
 ![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-231F20?style=for-the-badge&logo=apachekafka&logoColor=white)
 ![Swagger](https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)
 
@@ -85,12 +85,12 @@ VYBZ Chat Service는 다음과 같은 기능을 제공합니다:
 -   **메시지 히스토리**: 과거 메시지 조회 (커서 기반 페이징)
 -   **MongoDB Change Stream**: 실시간 메시지 변경 감지
 
-### 2. 라이브 채팅 시스템
+### 2. WebFlux 기반 반응형 시스템
 
--   **WebSocket 연결**: STOMP 프로토콜을 통한 실시간 양방향 통신
--   **라이브 방송 채팅**: 라이브 방송 중 실시간 채팅
--   **브로드캐스트**: 같은 라이브 방송 시청자에게 메시지 브로드캐스트
--   **연결 관리**: WebSocket 연결 상태 모니터링
+-   **비동기 처리**: WebFlux를 통한 비차단 I/O 처리
+-   **반응형 스트림**: Reactor를 활용한 메시지 스트리밍
+-   **백프레셔 처리**: 메시지 흐름 제어 및 백프레셔 관리
+-   **Sink 기반 메시징**: Reactor Sink를 통한 효율적인 메시지 전달
 
 ### 3. 채팅방 관리
 
@@ -144,16 +144,11 @@ src/main/java/back/vybz/chat_service/
 ├── kafka/                    # Kafka 이벤트 처리
 │   ├── config/               # Kafka 설정
 │   │   ├── ChatKafkaConfig.java
-│   │   ├── LiveChatKafkaConfig.java
 │   │   └── CommonKafkaConfig.java
 │   ├── event/                # 이벤트 모델
-│   │   ├── ChatEvent.java
-│   │   └── LiveChatEvent.java
-│   ├── producer/             # 이벤트 프로듀서
-│   │   ├── ChatKafkaProducer.java
-│   │   └── LiveChatKafkaProducer.java
-│   └── consumer/             # 이벤트 컨슈머
-│       └── LiveChatEventConsumer.java
+│   │   └── ChatEvent.java
+│   └── producer/             # 이벤트 프로듀서
+│       └── ChatKafkaProducer.java
 ├── chat/                     # 1:1 채팅 도메인
 │   ├── application/          # 채팅 서비스 로직
 │   │   ├── ChatMessageService.java
@@ -197,27 +192,7 @@ src/main/java/back/vybz/chat_service/
 │       └── response/
 │           ├── ResponseChatMessageVo.java
 │           └── ResponseChatRoomVo.java
-└── live_chat/                # 라이브 채팅 도메인
-    ├── application/          # 라이브 채팅 서비스 로직
-    │   ├── LiveChatService.java
-    │   └── LiveChatServiceImpl.java
-    ├── domain/               # 라이브 채팅 도메인 모델
-    │   └── LiveChatType.java
-    ├── dto/                  # 라이브 채팅 DTO
-    │   ├── request/
-    │   │   └── RequestSendLiveChatDto.java
-    │   └── response/
-    │       └── ResponseLiveChatDto.java
-    ├── interceptor/          # WebSocket 인터셉터
-    │   └── LiveChatHandShakeInterceptor.java
-    ├── presentation/         # 라이브 채팅 컨트롤러
-    │   ├── LiveChatController.java
-    │   └── LiveChatDocController.java
-    └── vo/                   # 라이브 채팅 VO
-        ├── request/
-        │   └── RequestSendLiveChatVo.java
-        └── response/
-            └── ResponseLiveChatVo.java
+
 ```
 
 ## 📚 API 문서
@@ -240,12 +215,6 @@ Swagger UI를 통해 API 문서를 확인할 수 있습니다:
 -   `POST /api/v1/chat-message/read` - 읽지 않은 메시지를 읽음으로 표시
 -   `POST /api/v1/chat-message/reset-unread` - 읽지 않은 메시지 수 초기화
 
-#### 라이브 채팅 WebSocket 엔드포인트
-
--   `WS /ws/live-chat?liveId={liveId}` - 라이브 채팅 WebSocket 연결
--   `STOMP /app/live-chat/sendMessage` - 라이브 채팅 메시지 전송
--   `STOMP /topic/live-chat/{liveId}` - 라이브 채팅 메시지 구독
-
 ### API 요청/응답 예시
 
 #### 채팅방 생성 요청
@@ -265,15 +234,6 @@ Swagger UI를 통해 API 문서를 확인할 수 있습니다:
     "senderUuid": "user-uuid-1",
     "receiverUuid": "user-uuid-2",
     "messageType": "TEXT",
-    "content": "안녕하세요!"
-}
-```
-
-#### 라이브 채팅 WebSocket 메시지 형식
-
-```json
-{
-    "senderUuid": "user-uuid",
     "content": "안녕하세요!"
 }
 ```
@@ -358,15 +318,17 @@ spring:
 
 ```javascript
 // SSE 연결 예시
-const eventSource = new EventSource('/api/v1/chat-message/subscribe?chatRoomId=room-id&participantUuid=user-uuid');
+const eventSource = new EventSource(
+    "/api/v1/chat-message/subscribe?chatRoomId=room-id&participantUuid=user-uuid"
+);
 
-eventSource.onmessage = function(event) {
+eventSource.onmessage = function (event) {
     const message = JSON.parse(event.data);
-    console.log('새 메시지:', message);
+    console.log("새 메시지:", message);
 };
 
-eventSource.onerror = function(error) {
-    console.error('SSE 연결 오류:', error);
+eventSource.onerror = function (error) {
+    console.error("SSE 연결 오류:", error);
 };
 ```
 
@@ -384,42 +346,38 @@ eventSource.onerror = function(error) {
 -   **필터링**: insert/update 이벤트만 처리
 -   **읽음 처리**: 읽음 상태 변경 시 실시간 알림
 
-### 라이브 채팅 시스템
+### WebFlux 기반 반응형 시스템
 
-#### WebSocket 연결
+#### Reactor 스트림 처리
 
-```javascript
-// WebSocket 연결 예시
-const socket = new WebSocket('ws://localhost:8000/ws/live-chat?liveId=live-id');
+```java
+// WebFlux를 통한 비동기 메시지 처리 예시
+public Flux<ResponseChatMessageDto> subscribeChatMessageByChatRoomId(String chatRoomId, String participantUuid) {
+    // 참가자 등록
+    participantManager.registerParticipant(chatRoomId, participantUuid);
 
-// STOMP 클라이언트 설정
-const stompClient = Stomp.over(socket);
+    // 메시지 수신용 Flux 생성 (Sink 기반)
+    Flux<ResponseChatMessageDto> messageFlux = chatSinkManager.getOrCreateSink(chatRoomId).asFlux();
 
-stompClient.connect({}, function(frame) {
-    console.log('WebSocket 연결됨');
-    
-    // 메시지 구독
-    stompClient.subscribe('/topic/live-chat/live-id', function(message) {
-        const chatMessage = JSON.parse(message.body);
-        console.log('라이브 채팅 메시지:', chatMessage);
-    });
-});
+    // 핑 전송용 Flux 생성
+    Flux<ResponseChatMessageDto> pingFlux = makePingFlux(chatRoomId);
 
-// 메시지 전송
-function sendLiveChatMessage(content) {
-    stompClient.send('/app/live-chat/sendMessage', {}, JSON.stringify({
-        senderUuid: 'user-uuid',
-        content: content
-    }));
+    // SSE 스트림 반환
+    return Flux.merge(messageFlux, pingFlux)
+            .doOnSubscribe(sub -> log.info("SSE 구독 시작: chatRoomId={}, participantUuid={}", chatRoomId, participantUuid))
+            .doFinally(signalType -> {
+                log.info("SSE 종료 감지: {}, chatRoomId={}, participantUuid={}", signalType, chatRoomId, participantUuid);
+                participantManager.unregisterParticipant(chatRoomId, participantUuid);
+            });
 }
 ```
 
-#### 라이브 채팅 타입
+#### Sink 기반 메시징
 
--   **JOIN**: 참여자 입장
--   **CHAT**: 채팅 메시지
--   **LEAVE**: 참여자 나감
--   **CLOSE**: 라이브 종료
+-   **Sink 생성**: 채팅방별 Reactor Sink 생성
+-   **백프레셔 처리**: 메시지 흐름 제어
+-   **자동 정리**: 참가자가 없을 때 Sink 자동 정리
+-   **메모리 효율성**: 효율적인 메시지 전달
 
 ### 채팅방 관리
 
@@ -460,33 +418,17 @@ function sendLiveChatMessage(content) {
     -   `senderUuid`: 발신자 UUID
     -   `receiverUuid`: 수신자 UUID
 
--   **LiveChatEvent**: 라이브 채팅 이벤트
-    -   `liveId`: 라이브 방송 ID
-    -   `senderUuid`: 발신자 UUID
-    -   `content`: 채팅 내용
-
-#### 구독 이벤트
-
--   **LiveChatEvent**: 라이브 채팅 이벤트 구독 및 브로드캐스트
-
 ### 이벤트 프로듀서
 
 -   `ChatKafkaProducer`: 1:1 채팅 이벤트 발행
--   `LiveChatKafkaProducer`: 라이브 채팅 이벤트 발행
-
-### 이벤트 컨슈머
-
--   `LiveChatEventConsumer`: 라이브 채팅 이벤트 구독 및 WebSocket 브로드캐스트
 
 ### Kafka 토픽
 
 -   `chat-message`: 1:1 채팅 이벤트 토픽
--   `live-chat`: 라이브 채팅 이벤트 토픽
 
 ### 이벤트 발행 시점
 
 -   **메시지 전송**: 사용자가 메시지 전송 시
--   **라이브 채팅**: 라이브 방송 중 채팅 메시지 전송 시
 
 ## 🏗 아키텍처
 
@@ -509,12 +451,12 @@ function sendLiveChatMessage(content) {
 -   **MongoDB**: 실시간 채팅 메시지 저장 (Change Stream 활용)
 -   **Redis**: 실시간 세션 관리 및 캐싱
 
-### WebSocket 아키텍처
+### WebFlux 아키텍처
 
--   **STOMP**: WebSocket 메시징 프로토콜
--   **세션 관리**: WebSocket 세션 속성을 통한 라이브 ID 관리
--   **메시지 라우팅**: 라이브 방송별 메시지 라우팅
--   **연결 관리**: 연결 상태 모니터링
+-   **비동기 처리**: WebFlux를 통한 비차단 I/O 처리
+-   **반응형 스트림**: Reactor를 활용한 메시지 스트리밍
+-   **백프레셔 처리**: 메시지 흐름 제어 및 백프레셔 관리
+-   **Sink 기반 메시징**: Reactor Sink를 통한 효율적인 메시지 전달
 
 ### SSE 아키텍처
 
@@ -541,33 +483,27 @@ function sendLiveChatMessage(content) {
 # 통합 테스트 실행
 ./gradlew integrationTest
 
-# WebSocket 테스트
-./gradlew test --tests "*WebSocketTest*"
+# WebFlux 테스트
+./gradlew test --tests "*WebFluxTest*"
 ```
 
-### WebSocket 테스트
+### WebFlux 테스트
 
-```javascript
-// WebSocket 연결 테스트
-const WebSocket = require('ws');
-const ws = new WebSocket('ws://localhost:8080/ws/live-chat?liveId=test-live');
+```java
+// WebFlux SSE 연결 테스트
+@Test
+public void testSSESubscription() {
+    WebTestClient webTestClient = WebTestClient.bindToServer()
+            .baseUrl("http://localhost:8000")
+            .build();
 
-ws.on('open', function open() {
-    console.log('연결됨');
-    
-    // STOMP 메시지 전송
-    ws.send(JSON.stringify({
-        destination: '/app/live-chat/sendMessage',
-        body: JSON.stringify({
-            senderUuid: 'test-user',
-            content: '테스트 메시지'
-        })
-    }));
-});
-
-ws.on('message', function message(data) {
-    console.log('수신:', JSON.parse(data));
-});
+    webTestClient.get()
+            .uri("/api/v1/chat-message/subscribe?chatRoomId=test-room&participantUuid=test-user")
+            .accept(MediaType.TEXT_EVENT_STREAM)
+            .exchange()
+            .expectStatus().isOk()
+            .expectHeader().contentType(MediaType.TEXT_EVENT_STREAM);
+}
 ```
 
 ### 성능 최적화
@@ -578,11 +514,11 @@ ws.on('message', function message(data) {
 -   **배치 처리**: 대량 데이터 처리 시 배치 사용
 -   **캐싱**: Redis를 통한 자주 조회되는 데이터 캐싱
 
-#### WebSocket 최적화
+#### WebFlux 최적화
 
--   **연결 풀링**: 연결 수 제한 및 관리
--   **메시지 압축**: 대용량 메시지 압축 전송
--   **하트비트**: 연결 상태 모니터링
+-   **비동기 처리**: 비차단 I/O를 통한 성능 향상
+-   **백프레셔 제어**: 메시지 흐름 제어 및 메모리 효율성
+-   **Sink 관리**: 효율적인 메시지 전달 및 자동 정리
 
 #### SSE 최적화
 
@@ -607,14 +543,14 @@ ws.on('message', function message(data) {
 
 ### 메트릭
 
--   **연결 수**: 활성 WebSocket/SSE 연결 수
+-   **연결 수**: 활성 SSE 연결 수
 -   **메시지 처리량**: 초당 처리 메시지 수
 -   **응답 시간**: API 응답 시간
 -   **에러율**: 에러 발생률
 
 ### 알림
 
--   **연결 실패**: WebSocket/SSE 연결 실패 알림
+-   **연결 실패**: SSE 연결 실패 알림
 -   **데이터베이스 오류**: DB 연결 오류 알림
 -   **Kafka 오류**: 메시지 전송 실패 알림
 
@@ -622,7 +558,7 @@ ws.on('message', function message(data) {
 
 ### 일반적인 문제
 
-#### WebSocket 연결 실패
+#### SSE 연결 실패
 
 ```bash
 # 포트 확인
@@ -649,7 +585,7 @@ redis-cli -h <탄력적 IP> -p 63379 -a vybz1234 ping
 mysql -h <탄력적 IP> -P 33306 -u vybz -p
 
 # MongoDB 연결 확인
-mongo mongodb://vybz:vybz1234@<탄력적 IP>:27020/vybz?authSource=admin
+mongo mongodb://vybz:<비밀번호>@<탄력적 IP>:27020/vybz?authSource=admin
 ```
 
 #### Kafka 연결 오류
@@ -668,8 +604,8 @@ tail -f logs/application.log
 # 에러 로그 확인
 grep "ERROR" logs/application.log
 
-# WebSocket 로그 확인
-grep "WebSocket" logs/application.log
+# WebFlux 로그 확인
+grep "WebFlux" logs/application.log
 ```
 
 ## 📝 라이선스
@@ -682,4 +618,4 @@ grep "WebSocket" logs/application.log
 
 ---
 
-**VYBZ Chat Service** - 실시간 채팅 및 라이브 채팅 서비스
+**VYBZ Chat Service** - WebFlux 기반 실시간 채팅 서비스

@@ -315,18 +315,18 @@ spring:
 
 ```javascript
 // SSE 연결 예시
-const eventSource = new EventSource(
-    "/api/v1/chat-message/subscribe?chatRoomId=room-id&participantUuid=user-uuid"
-);
+@RestController
+public class SseClientController {
 
-eventSource.onmessage = function (event) {
-    const message = JSON.parse(event.data);
-    console.log("새 메시지:", message);
-};
-
-eventSource.onerror = function (error) {
-    console.error("SSE 연결 오류:", error);
-};
+    @GetMapping("/sse-test")
+    public Flux<String> subscribeToChatMessages() {
+        WebClient client = WebClient.create("http://localhost:8080");
+        return client.get()
+            .uri("/api/v1/chat-message/subscribe?chatRoomId=room-id&participantUuid=user-uuid")
+            .retrieve()
+            .bodyToFlux(String.class);
+    }
+}
 ```
 
 #### 메시지 타입
